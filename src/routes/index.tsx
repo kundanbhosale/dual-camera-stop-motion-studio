@@ -24,6 +24,7 @@ import {
 	EmptyTitle,
 } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { directoryExists } from "@/lib/dirExists";
 import { cn } from "@/lib/utils";
 import { useSessionStore } from "@/stores/sessionStore";
 import siteconfig from "../../siteconfig";
@@ -42,12 +43,13 @@ type SessionItem = {
 function RouteComponent() {
 	const [list, setSessionList] = useState<SessionItem[]>([]);
 	const router = useRouter();
-
+	const [open, setOpen] = useState(false);
 	const parentFolder = useSessionStore((s) => s.parentFolder);
 
 	async function getSessions(): Promise<void> {
 		if (!parentFolder) return;
-
+		const exist = await directoryExists(parentFolder);
+		if (!exist) return;
 		const sessions: SessionItem[] = [];
 
 		for await (const [sessionName, sessionHandle] of parentFolder.entries()) {
@@ -126,17 +128,17 @@ function RouteComponent() {
 	}, [parentFolder]);
 	return (
 		<div className="flex h-screen overflow-hidden flex-col items-center justify-center container m-auto px-4">
-			<div className="w-full">
+			<div className="w-full bg-primary">
 				<div className="border-x border-b flex justify-between p-4 items-center">
 					<h1 className="text-2xl leading-tight tracking-tighter font-bold font-mono text-start uppercase bg-primary text-primary-foreground px-4 py-2 w-fit">
 						{siteconfig.name}
 					</h1>
 
-					<Dialog>
+					<Dialog open={open} onOpenChange={setOpen}>
 						<DialogTrigger
-							className={cn(buttonVariants({ size: "lg", variant: "default" }))}
+							className={cn(buttonVariants({ variant: "default" }))}
 						>
-							<PlusIcon className="size-6" /> New Session
+							<PlusIcon className="size-5" /> New Session
 						</DialogTrigger>
 						<DialogContent>
 							<DialogTitle>New Session</DialogTitle>
@@ -172,7 +174,7 @@ function RouteComponent() {
 						</DialogContent>
 					</Dialog>
 				</div>
-				<h2 className="text-center p-2 border-x bg-muted">
+				<h2 className="text-center p-2 border-x bg-muted text-sm tracking-snug">
 					Browser-based stop motion software with dual camera support, onion
 					skin overlays, reference image workflow, frame sequencing, and direct
 					local file saving.
@@ -192,13 +194,29 @@ function RouteComponent() {
 							<EmptyDescription>
 								Click on button below to create new camera capture session.
 							</EmptyDescription>
+							<Button
+								onClick={() => setOpen(true)}
+								variant={"outline"}
+								className={"px-12"}
+							>
+								New Session
+							</Button>
 						</EmptyContent>
 					</Empty>
 				) : (
 					<>
-						<p className="p-4 font-bold flex items-center gap-1">
-							<CameraIcon className="size-5" /> Recent Sessions
-						</p>
+						<div className="flex justify-between items-center p-4">
+							<p className="font-bold flex items-center gap-1">
+								<CameraIcon className="size-5" /> Recent Sessions
+							</p>
+							{/* <Button
+								onClick={() => setOpen(true)}
+								variant={"outline"}
+								className={"px-12"}
+							>
+								New Session
+							</Button> */}
+						</div>
 						{list.map((m, i) => (
 							<Link
 								key={m.name}

@@ -326,7 +326,6 @@ function Settings() {
 	const rightFolderName = useSessionStore((s) => s.rightFolderName);
 	const leftFramePrefix = useSessionStore((s) => s.leftFramePrefix);
 	const rightFramePrefix = useSessionStore((s) => s.rightFramePrefix);
-
 	const parentFolderName = useSessionStore((s) => s.parentFolder?.name ?? "");
 
 	return (

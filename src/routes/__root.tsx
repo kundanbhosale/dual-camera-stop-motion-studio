@@ -52,7 +52,7 @@ function RootDocument() {
 	}, []);
 
 	return (
-		<div className="font-sans antialiased [overflow-wrap:anywhere]">
+		<div className="antialiased [overflow-wrap:anywhere]">
 			{/* <Header /> */}
 			<Outlet />
 			<div className="md:hidden  size-full fixed top-0 left-0 z-10 bg-black text-white flex items-center justify-center text-center text-pretty p-4">

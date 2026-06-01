@@ -12,6 +12,7 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { directoryExists } from "@/lib/dirExists";
 import { parentFolderPick } from "@/lib/pickFolder";
 import { verifyPermission } from "@/lib/verifyPermissions";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -21,18 +22,6 @@ export default function PromptPermission() {
 	const [open, setOpen] = useState(false);
 	const [hasPerms, setHasPerms] = useState(true);
 
-	async function directoryExists(handle: FileSystemDirectoryHandle) {
-		try {
-			// Attempt to read first entry
-			await handle.values().next();
-
-			return true;
-		} catch {
-			useSessionStore.setState({ parentFolder: undefined });
-			return false;
-		}
-	}
-
 	const handlePerms = () => {
 		if (!parentFolder) return;
 		verifyPermission(parentFolder).then((p) => {
@@ -40,6 +29,8 @@ export default function PromptPermission() {
 		});
 	};
 	useEffect(() => {
+		directoryExists(parentFolder);
+
 		handlePerms();
 	}, [parentFolder]);
 

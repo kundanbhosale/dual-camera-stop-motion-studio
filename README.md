@@ -199,5 +199,5 @@ Please open an issue and include:
 
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![React](https://img.shields.io/badge/React-19-blue)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
+![TypeScript](https://img.shields.io/badge/TypeScript-6-blue)
 ![Vite](https://img.shields.io/badge/Vite-Latest-purple)
