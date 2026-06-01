@@ -1,5 +1,6 @@
 import {
 	ArrowRightIcon,
+	CameraIcon,
 	FlyingSaucerIcon,
 	PlusIcon,
 } from "@phosphor-icons/react";
@@ -25,6 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useSessionStore } from "@/stores/sessionStore";
+import siteconfig from "../../siteconfig";
 export const Route = createFileRoute("/")({
 	component: RouteComponent,
 });
@@ -126,14 +128,15 @@ function RouteComponent() {
 		<div className="flex h-screen overflow-hidden flex-col items-center justify-center container m-auto px-4">
 			<div className="w-full">
 				<div className="border-x border-b flex justify-between p-4 items-center">
-					<h1 className="text-2xl font-black font-sans w-full text-start">
-						TWIN LENS
+					<h1 className="text-2xl leading-tight tracking-tighter font-bold font-mono text-start uppercase bg-primary text-primary-foreground px-4 py-2 w-fit">
+						{siteconfig.name}
 					</h1>
+
 					<Dialog>
 						<DialogTrigger
 							className={cn(buttonVariants({ size: "lg", variant: "default" }))}
 						>
-							<PlusIcon className="size-6" /> Create New Session
+							<PlusIcon className="size-6" /> New Session
 						</DialogTrigger>
 						<DialogContent>
 							<DialogTitle>New Session</DialogTitle>
@@ -169,9 +172,11 @@ function RouteComponent() {
 						</DialogContent>
 					</Dialog>
 				</div>
-				<p className="text-sm text-center p-1 border-x bg-muted">
-					Supports only on latest Chrome version
-				</p>
+				<h2 className="text-center p-2 border-x bg-muted">
+					Browser-based stop motion software with dual camera support, onion
+					skin overlays, reference image workflow, frame sequencing, and direct
+					local file saving.
+				</h2>
 			</div>
 
 			<div className="flex flex-col w-full border divide-y flex-1 overflow-y-auto">
@@ -191,6 +196,9 @@ function RouteComponent() {
 					</Empty>
 				) : (
 					<>
+						<p className="p-4 font-bold flex items-center gap-1">
+							<CameraIcon className="size-5" /> Recent Sessions
+						</p>
 						{list.map((m, i) => (
 							<Link
 								key={m.name}
@@ -213,6 +221,11 @@ function RouteComponent() {
 						))}
 					</>
 				)}
+			</div>
+			<div className="w-full">
+				<p className="text-sm text-center p-1 border-x bg-muted">
+					Supports only on latest Chrome version
+				</p>
 			</div>
 		</div>
 	);
