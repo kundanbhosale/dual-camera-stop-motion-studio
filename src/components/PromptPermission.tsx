@@ -30,8 +30,10 @@ export default function PromptPermission() {
 	};
 	useEffect(() => {
 		directoryExists(parentFolder);
-
-		handlePerms();
+		const timer = setTimeout(() => {
+			handlePerms();
+		}, 500);
+		return () => clearTimeout(timer);
 	}, [parentFolder]);
 
 	useEffect(() => {
