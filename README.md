@@ -1,8 +1,8 @@
-# 🎥 Dual Camera Stop Motion Studio
+# Dual Camera Stop Motion Studio
 
-A modern dual-camera capture application built with **React**, **TanStack Router**, **Zustand**, and the **File System Access API**.
+Dual Camera Stop Motion Studio is a browser-based stop motion animation and multi-camera capture application that allows creators to capture synchronized frames from two cameras, use onion skin overlays, import reference images, and save files directly to local folders.
 
-Designed for stop-motion animation, miniature photography, product photography, stereoscopic capture, and frame-by-frame production workflows.
+Perfect for stop motion animation, product photography, miniature photography, toy photography, stereoscopic imaging, and frame-by-frame production workflows.
 
 ---
 
@@ -153,8 +153,51 @@ Recommended browsers:
 Safari and Firefox currently have limited support for direct folder access.
 
 ---
+
 ## Vision
 
 Dual Camera Stop Motion Studio aims to provide a lightweight, local-first alternative to expensive stop-motion software by combining modern web technologies with direct camera and filesystem access.
 
 Built for creators who need speed, simplicity, and complete control over their capture workflow.
+
+## License
+
+This project is licensed under the MIT License. See the LICENSE file for details.
+
+## Author
+
+**Kundan Bhosale**
+
+- GitHub: https://github.com/kundanbhosale
+- Website: https://www.kbstack.com
+
+## Contributing
+
+Contributions are welcome.
+
+If you'd like to improve the project:
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Open a Pull Request
+
+Bug reports, feature requests, and discussions are encouraged.
+
+## Reporting Issues
+
+Found a bug or have a feature request?
+
+Please open an issue and include:
+
+- Browser version
+- Operating system
+- Camera hardware used
+- Steps to reproduce
+- Screenshots if applicable
+
+
+![License](https://img.shields.io/badge/license-MIT-green)
+![React](https://img.shields.io/badge/React-19-blue)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
+![Vite](https://img.shields.io/badge/Vite-Latest-purple)

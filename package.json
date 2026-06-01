@@ -1,5 +1,24 @@
 {
-  "name": "camera-capture",
+  "name": "dual-camera-stop-motion-studio",
+  "version": "1.0.0",
+  "description": "Browser-based stop motion software with dual camera capture, onion skinning, reference images, frame sequencing, and direct folder saving.",
+  "keywords": [
+    "stop motion software",
+    "stop motion animation software",
+    "free stop motion software",
+    "browser stop motion app",
+    "onion skin animation",
+    "dual camera capture",
+    "dual webcam capture",
+    "frame by frame animation",
+    "stop motion photography",
+    "animation capture software",
+    "webcam stop motion software",
+    "multi camera photography",
+    "local first app",
+    "File System Access API",
+    "React stop motion application"
+  ],
   "private": true,
   "type": "module",
   "imports": {
@@ -60,13 +79,25 @@
     "vitest": "^4.1.5",
     "wrangler": "^4.70.0"
   },
-"pnpm": {
-  "onlyBuiltDependencies": [
-    "esbuild",
-    "lightningcss",
-    "workerd",
-    "sharp",
-    "@swc/core"
-  ]
-}
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "lightningcss",
+      "workerd",
+      "sharp",
+      "@swc/core"
+    ]
+  },
+  "author": {
+    "name": "Kundan Bhosale"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/kundanbhosale/dual-camera-stop-motion-studio",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kundanbhosale/dual-camera-stop-motion-studio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kundanbhosale/dual-camera-stop-motion-studio/issues"
+  }
 }
