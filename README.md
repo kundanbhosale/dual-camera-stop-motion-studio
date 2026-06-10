@@ -4,6 +4,8 @@ Dual Camera Stop Motion Studio is a browser-based stop motion animation and mult
 
 Perfect for stop motion animation, product photography, miniature photography, toy photography, stereoscopic imaging, and frame-by-frame production workflows.
 
+![Dual Camera Stop Motion Software Demo](./public/dual-camera-stop-motion-software.jpg)
+
 ---
 
 ## ✨ Features

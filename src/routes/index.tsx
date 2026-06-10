@@ -1,4 +1,9 @@
 import { CameraIcon, FlyingSaucerIcon, PlusIcon } from "@phosphor-icons/react";
+import {
+	CheckCircleIcon,
+	XCircleIcon,
+	XIcon,
+} from "@phosphor-icons/react/dist/ssr";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
 import { useEffect, useState } from "react";
@@ -128,7 +133,7 @@ function RouteComponent() {
 		getSessions();
 	}, [parentFolder]);
 	return (
-		<div className="flex h-screen overflow-hidden flex-col items-center justify-center m-auto">
+		<div className="flex flex-col items-center min-h-screen justify-center m-auto">
 			<div className="w-full bg-primary">
 				<div className="border-b flex justify-between p-4 items-center">
 					<h1 className="text-2xl leading-tight tracking-tighter font-bold font-mono text-start uppercase bg-primary text-primary-foreground px-4 py-2 w-fit">
@@ -175,98 +180,151 @@ function RouteComponent() {
 						</DialogContent>
 					</Dialog>
 				</div>
-				<h2 className="text-center p-2 border-x bg-muted text-sm tracking-snug">
-					Browser-based stop motion software with dual camera support, onion
-					skin overlays, reference image workflow, frame sequencing, and direct
-					local file saving.
-				</h2>
 			</div>
+			<div className="grid grid-cols-3 flex-1">
+				<div className="p-3 border-x bg-muted">
+					<div className="mb-4">
+						<img
+							src="/dual-camera-stop-motion-software.jpg"
+							alt="Dual Camera Stop Motion Software Demo"
+						/>
+					</div>
+					<h2 className="max-w-2xl xl:max-w-full  text-lg 2xl:text-2xl font-bold m-auto mb-8">
+						Browser-based stop motion software with dual camera support, onion
+						skin overlays, reference image workflow, frame sequencing, and
+						direct local file saving.
+					</h2>
 
-			<div className="flex flex-col w-full border divide-y flex-1 overflow-y-auto">
-				{list.length === 0 ? (
-					<Empty className="my-auto">
-						<EmptyContent>
-							<EmptyMedia variant={"default"} className="size-20">
-								<FlyingSaucerIcon className="size-14" />
-							</EmptyMedia>
-							<EmptyHeader>
-								<EmptyTitle>No Sessions Found!</EmptyTitle>
-							</EmptyHeader>
-							<EmptyDescription>
-								Click on button below to create new camera capture session.
-							</EmptyDescription>
-							<Button
-								onClick={() => setOpen(true)}
-								variant={"outline"}
-								className={"px-12"}
+					<br />
+					<h3 className="mb-2 font-bold">Features</h3>
+					<div>
+						{[
+							"Dual camera support",
+							"Add source image for reference",
+							"Previous frame as overlay",
+							"Toggle opacity",
+							"Custom file and folder names",
+							"Saves data on your disk",
+						].map((m, i) => (
+							<div
+								className="flex item-center gap-2 text-sm xl:text-base"
+								key={i}
 							>
-								New Session
-							</Button>
-						</EmptyContent>
-					</Empty>
-				) : (
-					<>
-						<div className="flex justify-between items-center p-4">
-							<p className="font-bold flex items-center gap-1">
-								<CameraIcon className="size-5" /> Recent Sessions
-							</p>
-							{/* <Button
+								<CheckCircleIcon weight="fill" className="size-5 shrink-0" />
+								<span>{m}</span>
+							</div>
+						))}
+					</div>
+					<br />
+					<h3 className="mb-2 font-bold">Limitations</h3>
+					<div>
+						{[
+							"Supports only on latest browsers because this software uses latest browser API's to save data to your local computer disk.",
+						].map((m, i) => (
+							<div
+								className="flex item-center gap-2 text-sm xl:text-base"
+								key={i}
+							>
+								<XCircleIcon weight="fill" className="size-5 shrink-0" />
+								<span>{m}</span>
+							</div>
+						))}
+					</div>
+				</div>
+				<div className="flex flex-col w-full border divide-y flex-1 overflow-y-auto col-span-2">
+					{list.length === 0 ? (
+						<Empty className="my-auto">
+							<EmptyContent>
+								<EmptyMedia variant={"default"} className="size-20">
+									<FlyingSaucerIcon className="size-14" />
+								</EmptyMedia>
+								<EmptyHeader>
+									<EmptyTitle>No Sessions Found!</EmptyTitle>
+								</EmptyHeader>
+								<EmptyDescription>
+									Click on button below to create new camera capture session.
+								</EmptyDescription>
+								<Button
+									onClick={() => setOpen(true)}
+									variant={"outline"}
+									className={"px-12"}
+								>
+									New Session
+								</Button>
+							</EmptyContent>
+						</Empty>
+					) : (
+						<>
+							<div className="flex justify-between items-center p-4">
+								<p className="font-bold flex items-center gap-1">
+									<CameraIcon className="size-5" /> Recent Sessions
+								</p>
+								{/* <Button
 								onClick={() => setOpen(true)}
 								variant={"outline"}
 								className={"px-12"}
 							>
 								New Session
 							</Button> */}
-						</div>
-						<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
-							{list.map((m, i) => (
-								<Link
-									key={m.name}
-									to="/session/$id"
-									params={{ id: encodeURIComponent(m.name) }}
-									className="flex flex-col gap-2 justify-between font-medium text-base p-4 items-start"
-								>
-									<div className="bg-accent size-full flex flex-col p-4">
-										<div className="mb-4">
-											<span className="block font-bold">{m.name}</span>
-											<span className="text-xs">
-												Updated&nbsp;
-												{formatDistanceToNow(new Date(m.createdAt as any), {
-													addSuffix: true,
-												})}
-											</span>
+							</div>
+							<div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
+								<div className="p-4 flex flex-col h-full">
+									<button
+										onClick={() => setOpen(true)}
+										type="button"
+										className="border font-medium w-full h-full flex flex-col items-center justify-center"
+									>
+										<PlusIcon
+											className="size-8 text-muted-foreground mb-2"
+											weight="bold"
+										/>
+										<span>New Session</span>
+									</button>
+								</div>
+								{list.map((m, i) => (
+									<Link
+										key={m.name}
+										to="/session/$id"
+										params={{ id: encodeURIComponent(m.name) }}
+										className="flex flex-col gap-2 justify-between font-medium text-base p-4 items-start"
+									>
+										<div className="bg-accent size-full flex flex-col p-4">
+											<div className="mb-4">
+												<span className="block font-bold">{m.name}</span>
+												<span className="text-xs">
+													Updated&nbsp;
+													{formatDistanceToNow(new Date(m.createdAt as any), {
+														addSuffix: true,
+													})}
+												</span>
+											</div>
+											<div className="text-xs grid grid-cols-3 gap-2">
+												<span className="flex flex-col">
+													<span className="text-2xl font-bold">
+														{m.sourceFrames}
+													</span>
+													<span>Source</span>
+												</span>
+												<span className="flex flex-col">
+													<span className="text-2xl font-bold">
+														{m.leftFrames}
+													</span>
+													<span>Left </span>
+												</span>
+												<span className="flex flex-col">
+													<span className="text-2xl font-bold">
+														{m.rightFrames}
+													</span>
+													<span>Right </span>
+												</span>
+											</div>
 										</div>
-										<div className="text-xs grid grid-cols-3 gap-2">
-											<span className="flex flex-col">
-												<span className="text-2xl font-bold">
-													{m.sourceFrames}
-												</span>
-												<span>Source</span>
-											</span>
-											<span className="flex flex-col">
-												<span className="text-2xl font-bold">
-													{m.leftFrames}
-												</span>
-												<span>Left </span>
-											</span>
-											<span className="flex flex-col">
-												<span className="text-2xl font-bold">
-													{m.rightFrames}
-												</span>
-												<span>Right </span>
-											</span>
-										</div>
-									</div>
-								</Link>
-							))}
-						</div>
-					</>
-				)}
-			</div>
-			<div className="w-full">
-				<p className="text-sm text-center p-1 border-x bg-muted">
-					Supports only on latest Chrome version
-				</p>
+									</Link>
+								))}
+							</div>
+						</>
+					)}
+				</div>
 			</div>
 		</div>
 	);
