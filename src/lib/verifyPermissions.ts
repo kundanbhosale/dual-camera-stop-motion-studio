@@ -19,7 +19,6 @@ export async function verifyPermission(handle: FileSystemDirectoryHandle) {
 
 		return true;
 	} catch (e) {
-		console.log(e);
 		e?.message && toast.error(e?.message);
 		return false;
 	}

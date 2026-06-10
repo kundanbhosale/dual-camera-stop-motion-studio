@@ -82,7 +82,6 @@ function Session() {
 	useEffect(() => {
 		loadCapturedFrames(sessionFolder)
 			.then((t) => {
-				console.log(t);
 				if (!t || t.length === 0) return setCurrentFrameIdx(0);
 				setCurrentFrameIdx(t.length - 1);
 			})

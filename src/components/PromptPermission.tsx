@@ -67,7 +67,6 @@ export default function PromptPermission() {
 			),
 		},
 	};
-	console.log(hasPerms);
 	const curr = useMemo(() => {
 		return !hasPerms ? data["no_perm"] : data["no_folder"];
 	}, [hasPerms, parentFolder]);
