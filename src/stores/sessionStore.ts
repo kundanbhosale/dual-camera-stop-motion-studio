@@ -1,30 +1,20 @@
-import { del, get, set } from "idb-keyval";
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
-
-const idbStorage = {
-	getItem: async (name: string) => {
-		return (await get(name)) ?? null;
-	},
-
-	setItem: async (name: string, value: unknown) => {
-		await set(name, value);
-	},
-
-	removeItem: async (name: string) => {
-		await del(name);
-	},
-};
+import { persist } from "zustand/middleware";
+import { immer } from "zustand/middleware/immer";
+import { idbStorage } from "./idbStorage";
 
 export interface SessionState {
 	onionSkin: boolean;
 	onionSkinOpacity: number;
-	sourceFrame: string;
+	sourceImage: boolean;
+	sourceImgOpacity: number;
+
 	leftFramePrefix: string;
 	rightFramePrefix: string;
-
+	sourceFramePrefix: string;
 	leftFolderName: string;
 	rightFolderName: string;
+	sourceFolderName: string;
 
 	leftDeviceId?: string;
 	rightDeviceId?: string;
@@ -34,15 +24,19 @@ export interface SessionState {
 	capturedFrames: {
 		left?: { name: string; file: string };
 		right?: { name: string; file: string };
+		source?: { name: string; file: string };
 	}[];
 
 	setParentFolder: (handle: FileSystemDirectoryHandle) => void;
 
 	setDevices: (left?: string, right?: string) => void;
+	toggleSourceImage: () => void;
 
 	toggleOnion: () => void;
-
-	addCapturedFrame: (frame: SessionState["capturedFrames"][number]) => void;
+	addCapturedFrame: (
+		frame: SessionState["capturedFrames"][number],
+		idx: number,
+	) => void;
 }
 
 export const useSessionStore = create<SessionState>()(
@@ -50,10 +44,12 @@ export const useSessionStore = create<SessionState>()(
 		(set) => ({
 			onionSkin: true,
 			onionSkinOpacity: 0.5,
-			sourceFrame: "",
+			sourceImage: true,
+			sourceImgOpacity: 0.5,
+			sourceFramePrefix: "S",
 			leftFramePrefix: "L",
 			rightFramePrefix: "R",
-
+			sourceFolderName: "Source",
 			leftFolderName: "Left Cam",
 			rightFolderName: "Right Cam",
 
@@ -74,11 +70,19 @@ export const useSessionStore = create<SessionState>()(
 				set((s) => ({
 					onionSkin: !s.onionSkin,
 				})),
-
-			addCapturedFrame: (frame) =>
+			toggleSourceImage: () =>
 				set((s) => ({
-					capturedFrames: [...s.capturedFrames, frame],
+					sourceImage: !s.sourceImage,
 				})),
+
+			addCapturedFrame: (frame, idx) =>
+				set((state) => {
+					state.capturedFrames[idx] = {
+						...state.capturedFrames[idx],
+						...frame,
+					};
+					return state;
+				}),
 		}),
 		{
 			name: "dual-cam-store",
@@ -86,6 +90,8 @@ export const useSessionStore = create<SessionState>()(
 			partialize: (state) => ({
 				onionSkin: state.onionSkin,
 				onionSkinOpacity: state.onionSkinOpacity,
+				sourceImage: state.sourceImage,
+				sourceImgOpacity: state.sourceImgOpacity,
 				leftFramePrefix: state.leftFramePrefix,
 				rightFramePrefix: state.rightFramePrefix,
 				leftFolderName: state.leftFolderName,

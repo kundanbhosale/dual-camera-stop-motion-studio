@@ -1,21 +1,27 @@
-import { CaretLeftIcon } from "@phosphor-icons/react";
-import { CameraIcon, GearIcon } from "@phosphor-icons/react/dist/ssr";
+import { CaretLeftIcon, CommandIcon } from "@phosphor-icons/react";
+import {
+	CameraIcon,
+	ControlIcon,
+	GearIcon,
+	ImageIcon,
+	PlusIcon,
+} from "@phosphor-icons/react/dist/ssr";
 import {
 	createFileRoute,
 	useNavigate,
 	useRouter,
 } from "@tanstack/react-router";
-import { Space } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { LoaderIcon, Space } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
-import { SourceReference } from "@/components/SourceReference";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { loadCapturedFrames } from "@/lib/frame";
 import { parentFolderPick } from "@/lib/pickFolder";
 import { cn } from "@/lib/utils";
 import { verifyPermission } from "@/lib/verifyPermissions";
@@ -41,18 +47,20 @@ function Session() {
 		useState<FileSystemDirectoryHandle | null>(null);
 	const leftDeviceId = useSessionStore((s) => s.leftDeviceId);
 	const parentFolder = useSessionStore((s) => s.parentFolder);
-	const sourceFrame = useSessionStore((s) => s.sourceFrame);
 
 	const rightDeviceId = useSessionStore((s) => s.rightDeviceId);
 	const setDevicesStore = useSessionStore((s) => s.setDevices);
 	const devices = useDevices((s) => s.devices);
-
-	const onionSkin = useSessionStore((s) => s.onionSkin);
+	const [currentFrameIdx, setCurrentFrameIdx] = useState<number>(-1);
+	const [loading, setLoading] = useState(true);
+	const [capturing, setCapturing] = useState(false);
 
 	const capturedFrames = useSessionStore((s) => s.capturedFrames);
 
 	const addCapturedFrame = useSessionStore((s) => s.addCapturedFrame);
-	const previous = capturedFrames[capturedFrames.length - 1];
+	const previous = useMemo(() => {
+		return capturedFrames[currentFrameIdx - 1];
+	}, [capturedFrames, currentFrameIdx]);
 
 	const { leftStream, rightStream } = useDualCamera(
 		leftDeviceId,
@@ -61,61 +69,7 @@ function Session() {
 
 	const leftVideoRef = useRef<HTMLVideoElement>(null);
 	const rightVideoRef = useRef<HTMLVideoElement>(null);
-
-	async function loadCapturedFrames() {
-		if (!sessionFolder) return;
-		const leftFrames = new Map<number, { name: string; file: string }>();
-		const rightFrames = new Map<number, { name: string; file: string }>();
-
-		for await (const [folderName, folderHandle] of sessionFolder.entries()) {
-			if (folderHandle.kind !== "directory") continue;
-
-			const isLeft = folderName.toLowerCase().includes("left");
-			const isRight = folderName.toLowerCase().includes("right");
-
-			if (!isLeft && !isRight) continue;
-
-			for await (const [fileName, fileHandle] of folderHandle.entries()) {
-				if (fileHandle.kind !== "file") continue;
-
-				if (!/\.(jpg|jpeg|png|webp)$/i.test(fileName)) continue;
-
-				function getFrameNumber(fileName: string) {
-					const match = fileName.match(/(\d+)(?!.*\d)/);
-					return match ? Number(match[1]) : null;
-				}
-
-				const frameNumber = getFrameNumber(fileName);
-				if (frameNumber === null) continue;
-
-				const file = await fileHandle.getFile();
-
-				const url = URL.createObjectURL(file);
-
-				if (isLeft) {
-					leftFrames.set(frameNumber, { name: file.name, file: url });
-				}
-
-				if (isRight) {
-					rightFrames.set(frameNumber, { name: file.name, file: url });
-				}
-			}
-		}
-
-		// combine frame numbers
-		const allFrameNumbers = Array.from(
-			new Set([...leftFrames.keys(), ...rightFrames.keys()]),
-		).sort((a, b) => a - b);
-
-		const capturedFrames = allFrameNumbers.map((frameNumber) => ({
-			left: leftFrames.get(frameNumber),
-			right: rightFrames.get(frameNumber),
-		}));
-
-		useSessionStore.setState({ capturedFrames });
-
-		return capturedFrames;
-	}
+	const inputRef = useRef<HTMLInputElement>(null);
 
 	const findSessionFolder = async (fid: string) => {
 		if (!parentFolder) return;
@@ -126,7 +80,15 @@ function Session() {
 	};
 
 	useEffect(() => {
-		loadCapturedFrames();
+		loadCapturedFrames(sessionFolder)
+			.then((t) => {
+				console.log(t);
+				if (!t || t.length === 0) return setCurrentFrameIdx(0);
+				setCurrentFrameIdx(t.length - 1);
+			})
+			.finally(() => {
+				setLoading(false);
+			});
 	}, [sessionFolder]);
 
 	useEffect(() => {
@@ -145,8 +107,58 @@ function Session() {
 		);
 	}, [leftDeviceId, rightDeviceId, devices]);
 
+	async function addSource(file: File) {
+		try {
+			setCapturing(true);
+			if (!file) return;
+			const state = useSessionStore.getState();
+
+			if (!state.parentFolder) {
+				return toast.error("Save to folder not selected.");
+			}
+			const folder =
+				sessionFolder ??
+				(await state.parentFolder.getDirectoryHandle(sessionId, {
+					create: true,
+				}));
+
+			const allowed = await verifyPermission(state.parentFolder);
+
+			if (!allowed) {
+				return toast.error("No File Editing Permission");
+			}
+
+			const sourceName = createFileName(
+				currentFrameIdx + 1,
+				state.sourceFramePrefix,
+			);
+
+			const sourceFolder = await folder.getDirectoryHandle(
+				state.sourceFolderName,
+				{
+					create: true,
+				},
+			);
+			const sourceFile = await saveBlobToFolder(sourceFolder, sourceName, file);
+
+			const sourceUrl = URL.createObjectURL(sourceFile);
+
+			addCapturedFrame(
+				{
+					source: { name: sourceFile.name, file: sourceUrl },
+				},
+				currentFrameIdx,
+			);
+		} catch (e) {
+			e?.message && toast.error(e.message);
+		} finally {
+			setCapturing(false);
+		}
+	}
+
 	async function capture() {
 		try {
+			setCapturing(true);
 			if (!leftVideoRef.current) {
 				return toast.error("Left camera stream is missing");
 			}
@@ -179,11 +191,11 @@ function Session() {
 			]);
 
 			const leftName = createFileName(
-				state.capturedFrames.length + 1,
+				currentFrameIdx + 1,
 				state.leftFramePrefix,
 			);
 			const rightName = createFileName(
-				state.capturedFrames.length + 1,
+				currentFrameIdx + 1,
 				state.rightFramePrefix,
 			);
 			const leftFolder = await folder.getDirectoryHandle(state.leftFolderName, {
@@ -205,33 +217,86 @@ function Session() {
 			const leftUrl = URL.createObjectURL(leftFile);
 			const rightUrl = URL.createObjectURL(rightFile);
 
-			addCapturedFrame({
-				left: { name: leftFile.name, file: leftUrl },
-				right: { name: rightFile.name, file: rightUrl },
-			});
+			addCapturedFrame(
+				{
+					left: { name: leftFile.name, file: leftUrl },
+					right: { name: rightFile.name, file: rightUrl },
+				},
+				currentFrameIdx,
+			);
+			if (currentFrameIdx === state.capturedFrames.length - 1) {
+				setCurrentFrameIdx((s) => s + 1);
+				addCapturedFrame({}, state.capturedFrames.length);
+			}
 		} catch (e) {
 			e?.message && toast.error(e.message);
+		} finally {
+			setCapturing(false);
 		}
 	}
 
-	useHotkeys("space", () => {
+	const newFrame = () => {
+		const curr = capturedFrames[capturedFrames.length - 1];
+		if (!curr.left?.file || !curr.right?.file) {
+			return toast.error(
+				"Left / Right frame missing! Please capture to move forward.",
+			);
+		}
+
+		setCurrentFrameIdx((s) => capturedFrames.length);
+		addCapturedFrame({}, capturedFrames.length);
+	};
+
+	useHotkeys("meta+space", (e) => {
+		e.preventDefault();
+		if (currentFrameIdx === -1) return;
 		capture();
 	});
 
+	useHotkeys(["meta+d"], (e) => {
+		e.preventDefault();
+		newFrame();
+	});
+
+	useHotkeys(["meta+s"], (e) => {
+		e.preventDefault();
+		inputRef.current?.click();
+	});
+
+	useHotkeys(["left"], (e) => {
+		e.preventDefault();
+		setCurrentFrameIdx((s) => (s === 0 ? 0 : s - 1));
+	});
+	useHotkeys(["right"], (e) => {
+		e.preventDefault();
+
+		setCurrentFrameIdx((s) =>
+			s === capturedFrames.length - 1 ? capturedFrames.length - 1 : s + 1,
+		);
+	});
+
+	const isMac = useMemo(
+		() => /Mac|iPhone|iPod|iPad/.test(navigator.platform),
+		[],
+	);
+
 	return (
 		<div className="flex h-screen flex-col">
-			<div className="grid grid-cols-[auto_300px] flex-1">
-				<div className="flex flex-col">
-					<div className="p-4 flex gap-2">
-						<Button
-							size={"icon-sm"}
-							variant={"outline"}
-							onClick={() => navigate({ href: "/" })}
-						>
-							<CaretLeftIcon />
-						</Button>
-						<p className="text-lg font-bold">{sessionId}</p>
-						{/* <input
+			{loading ? (
+				<LoaderIcon className="animate-spin size-10 m-auto" />
+			) : (
+				<div className="grid grid-cols-[auto_300px] flex-1">
+					<div className="flex flex-col">
+						<div className="px-4 py-2 xl:py-4 flex gap-2">
+							<Button
+								size={"icon-sm"}
+								variant={"outline"}
+								onClick={() => navigate({ href: "/" })}
+							>
+								<CaretLeftIcon />
+							</Button>
+							<p className="text-lg font-bold">{sessionId}</p>
+							{/* <input
 							className="text-lg font-bold"
 							value={sessionId}
 							onChange={(v) => setSessionId(v.currentTarget.value)}
@@ -246,73 +311,161 @@ function Session() {
 								});
 							}}
 						/> */}
-					</div>
-					<div className="grid grid-cols-2 px-4 gap-4 flex-1">
-						<div className="relative">
-							<CameraView
-								title="Left Camera"
-								stream={leftStream}
-								overlay={
-									onionSkin ? (previous?.left?.file ?? sourceFrame) : undefined
-								}
-								ref={leftVideoRef}
-								id={leftDeviceId}
-								onCamChange={(d) => setDevicesStore(d, rightDeviceId)}
+						</div>
+						<div className="grid grid-cols-2 px-4 gap-4">
+							<div className="relative">
+								<CameraView
+									title="Left Camera"
+									stream={leftStream}
+									overlayFrame={previous?.left?.file}
+									sourceFrame={capturedFrames?.[currentFrameIdx]?.source?.file}
+									ref={leftVideoRef}
+									id={leftDeviceId}
+									onCamChange={(d) => setDevicesStore(d, rightDeviceId)}
+								/>
+							</div>
+
+							<div className="relative">
+								<CameraView
+									id={rightDeviceId}
+									title="Right Camera"
+									stream={rightStream}
+									overlayFrame={previous?.right?.file}
+									sourceFrame={capturedFrames?.[currentFrameIdx]?.source?.file}
+									ref={rightVideoRef}
+									onCamChange={(d) => setDevicesStore(leftDeviceId, d)}
+								/>
+							</div>
+						</div>
+						<div className="flex flex-col items-center justify-center flex-1 px-4">
+							<div className="flex gap-4 flex-1 w-full justify-end items-end max-w-5xl m-auto">
+								<Button
+									disabled={capturing}
+									onClick={() => currentFrameIdx !== -1 && capture()}
+									size={"xl"}
+									className={
+										"flex-1 min-h-14 text-sm xl:text-xl max-h-32 cursor-pointer xl:mb-8 h-full flex-col justify-center gap-1"
+									}
+								>
+									<div className="flex items-center justify-center gap-2">
+										<CameraIcon className="size-4 xl:size-6" />{" "}
+										<span>Capture</span>
+									</div>
+									<span className="text-xs flex gap-2 items-center">
+										<span
+											className={cn(
+												buttonVariants({ variant: "default" }),
+												"size-4 xl:size-6 bg-secondary/20",
+											)}
+										>
+											{isMac ? <CommandIcon /> : <ControlIcon />}
+										</span>
+										<span
+											className={cn(
+												buttonVariants({ variant: "default" }),
+												"size-4 xl:size-6 bg-secondary/20",
+											)}
+										>
+											<Space />
+										</span>
+									</span>
+								</Button>
+
+								<Button
+									onClick={() => inputRef.current?.click()}
+									size={"xl"}
+									className={
+										"flex-1 min-h-14 text-sm xl:text-xl max-h-32 cursor-pointer xl:mb-8 h-full flex-col justify-center gap-1"
+									}
+									variant={"outline"}
+									disabled={capturing}
+								>
+									<div className="flex items-center justify-center gap-2">
+										<ImageIcon className="size-4 xl:size-6" />
+										<span className=""> Add Source</span>
+									</div>
+									<span className="text-xs flex gap-2 items-center">
+										<span
+											className={cn(
+												buttonVariants({ variant: "secondary" }),
+												"size-4 xl:size-6",
+											)}
+										>
+											{isMac ? <CommandIcon /> : <ControlIcon />}
+										</span>
+
+										<span
+											className={cn(
+												buttonVariants({ variant: "secondary" }),
+												"size-4 xl:size-6 sm:text-xs",
+											)}
+										>
+											S
+										</span>
+									</span>
+								</Button>
+
+								<Button
+									onClick={newFrame}
+									size={"xl"}
+									className={
+										"flex-1 min-h-14 text-sm xl:text-xl max-h-32 cursor-pointer xl:mb-8 h-full flex-col justify-center gap-1"
+									}
+									variant={"outline"}
+									disabled={capturing}
+								>
+									{" "}
+									<div className="flex items-center justify-center gap-2">
+										<PlusIcon className="size-4 xl:size-6" />
+										<span>New Frame</span>
+									</div>
+									<span className="text-xs flex gap-2 items-center">
+										<span
+											className={cn(
+												buttonVariants({ variant: "secondary" }),
+												"size-4 xl:size-6",
+											)}
+										>
+											{isMac ? <CommandIcon /> : <ControlIcon />}
+										</span>
+
+										<span
+											className={cn(
+												"sm:text-xs",
+												buttonVariants({ variant: "secondary" }),
+												"size-4 xl:size-6",
+											)}
+										>
+											D
+										</span>
+									</span>
+								</Button>
+								<input
+									ref={inputRef}
+									type="file"
+									accept="image/*"
+									className="hidden"
+									onChange={(e) => {
+										const file = e.target.files?.[0];
+										if (!file || currentFrameIdx === -1) return;
+										addSource(file);
+									}}
+								/>
+							</div>
+						</div>
+						<div className="px-4 space-y-4">
+							<TimelineFrames
+								frames={capturedFrames}
+								currentFrameIdx={currentFrameIdx}
+								setCurrentFrameIdx={setCurrentFrameIdx}
 							/>
 						</div>
-
-						<div className="relative">
-							<CameraView
-								id={rightDeviceId}
-								title="Right Camera"
-								stream={rightStream}
-								overlay={
-									onionSkin ? (previous?.right?.file ?? sourceFrame) : undefined
-								}
-								ref={rightVideoRef}
-								onCamChange={(d) => setDevicesStore(leftDeviceId, d)}
-							/>
-						</div>
 					</div>
-					<div className="flex flex-col items-center justify-center">
-						<Button
-							onClick={capture}
-							size={"xl"}
-							className={"w-fit px-20 h-20 text-xl"}
-						>
-							<CameraIcon className="size-8" /> Capture
-						</Button>
-						<div className="text-xs mt-2 flex items-center gap-2">
-							<span
-								className={cn(
-									buttonVariants({ variant: "secondary" }),
-									"size-6",
-								)}
-							>
-								<Space />
-							</span>
-							<span>Hit "Space" to capture frame</span>
-						</div>
-					</div>
-					<div className="p-4 space-y-4">
-						<TimelineFrames frames={capturedFrames} />
+					<div className="border-l flex flex-col flex-1 overflow-y-auto">
+						<Settings />
 					</div>
 				</div>
-				<div className="border-l flex flex-col flex-1 overflow-y-auto">
-					<Settings />
-				</div>
-			</div>
-			{/* <CaptureControls
-                frame={frame}
-                onionSkin={onionSkin}
-                onCapture={capture}
-                onToggleOnion={toggleOnion}
-            /> */}
-
-			{/* <div className="p-4 border-t">
-                Frame #{frame}
-                <TimelineFrames frames={capturedFrames} />
-            </div> */}
+			)}
 		</div>
 	);
 }
@@ -321,6 +474,10 @@ function Settings() {
 	const toggleOnion = useSessionStore((s) => s.toggleOnion);
 	const onionSkinOpacity = useSessionStore((s) => s.onionSkinOpacity);
 	const onionSkin = useSessionStore((s) => s.onionSkin);
+
+	const toggleSourceImage = useSessionStore((s) => s.toggleSourceImage);
+	const sourceImgOpacity = useSessionStore((s) => s.sourceImgOpacity);
+	const sourceImage = useSessionStore((s) => s.sourceImage);
 
 	const leftFolderName = useSessionStore((s) => s.leftFolderName);
 	const rightFolderName = useSessionStore((s) => s.rightFolderName);
@@ -336,7 +493,34 @@ function Settings() {
 			<Separator />
 
 			<div className="px-4 space-y-4">
-				<SourceReference />
+				<Field orientation="horizontal" className="">
+					<FieldLabel htmlFor="source-image" className="min-w-32">
+						Toggle Source Image
+					</FieldLabel>
+					<Switch
+						id="source-image"
+						checked={sourceImage}
+						onCheckedChange={toggleSourceImage}
+					/>
+				</Field>
+				<Field orientation="horizontal" className="">
+					<FieldLabel htmlFor="source-img-opacity" className="min-w-32">
+						Source Image Opacity
+					</FieldLabel>
+					<Slider
+						id="source-img-opacity"
+						min={0.1}
+						max={0.9}
+						step={0.01}
+						value={sourceImgOpacity}
+						onValueChange={(v) => {
+							useSessionStore.setState({
+								sourceImgOpacity: typeof v === "number" ? v : v[0],
+							});
+						}}
+					/>
+				</Field>
+				<Separator />
 				<Field orientation="horizontal" className="">
 					<FieldLabel htmlFor="onion-skin" className="min-w-32">
 						Toggle Onion Skin

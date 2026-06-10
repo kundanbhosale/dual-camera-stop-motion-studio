@@ -1,14 +1,8 @@
-import {
-	ArrowRightIcon,
-	CameraIcon,
-	FlyingSaucerIcon,
-	PlusIcon,
-} from "@phosphor-icons/react";
+import { CameraIcon, FlyingSaucerIcon, PlusIcon } from "@phosphor-icons/react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { useEffect, useState } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -35,8 +29,8 @@ export const Route = createFileRoute("/")({
 type SessionItem = {
 	name: string;
 	createdAt?: number;
-	totalFrames: number;
 	leftFrames: number;
+	sourceFrames: number;
 	rightFrames: number;
 };
 
@@ -47,6 +41,7 @@ function RouteComponent() {
 	const parentFolder = useSessionStore((s) => s.parentFolder);
 
 	async function getSessions(): Promise<void> {
+		const state = useSessionStore.getState();
 		if (!parentFolder) return;
 		const exist = await directoryExists(parentFolder);
 		if (!exist) return;
@@ -59,6 +54,7 @@ function RouteComponent() {
 
 			let leftFrames = 0;
 			let rightFrames = 0;
+			let sourceFrames = 0;
 
 			let createdAt: number | undefined;
 
@@ -71,9 +67,10 @@ function RouteComponent() {
 					continue;
 				}
 
-				const isLeft = cameraFolderName.toLowerCase().includes("left");
+				const isLeft = cameraFolderName === state.leftFolderName;
 
-				const isRight = cameraFolderName.toLowerCase().includes("right");
+				const isRight = cameraFolderName === state.rightFolderName;
+				const isSource = cameraFolderName === state.sourceFolderName;
 
 				// frame files
 				for await (const [
@@ -96,6 +93,10 @@ function RouteComponent() {
 						rightFrames++;
 					}
 
+					if (isSource) {
+						sourceFrames++;
+					}
+
 					// approximate session date
 					if (!createdAt) {
 						try {
@@ -114,7 +115,7 @@ function RouteComponent() {
 				createdAt: createdAt || Date.now(),
 				leftFrames,
 				rightFrames,
-				totalFrames: leftFrames + rightFrames,
+				sourceFrames,
 			});
 		}
 
@@ -127,9 +128,9 @@ function RouteComponent() {
 		getSessions();
 	}, [parentFolder]);
 	return (
-		<div className="flex h-screen overflow-hidden flex-col items-center justify-center container m-auto px-4">
+		<div className="flex h-screen overflow-hidden flex-col items-center justify-center m-auto">
 			<div className="w-full bg-primary">
-				<div className="border-x border-b flex justify-between p-4 items-center">
+				<div className="border-b flex justify-between p-4 items-center">
 					<h1 className="text-2xl leading-tight tracking-tighter font-bold font-mono text-start uppercase bg-primary text-primary-foreground px-4 py-2 w-fit">
 						{siteconfig.name}
 					</h1>
@@ -217,26 +218,48 @@ function RouteComponent() {
 								New Session
 							</Button> */}
 						</div>
-						{list.map((m, i) => (
-							<Link
-								key={m.name}
-								to="/session/$id"
-								params={{ id: encodeURIComponent(m.name) }}
-								className="flex gap-2 justify-between font-medium text-base p-4 hover:bg-muted items-center"
-							>
-								<span>
-									<span className="block">{m.name}</span>
-									<span className="block text-xs text-muted-foreground">
-										{formatDistanceToNow(new Date(m.createdAt as any), {
-											addSuffix: true,
-										})}
-									</span>
-								</span>
-								<span>
-									<ArrowRightIcon weight="bold" />
-								</span>
-							</Link>
-						))}
+						<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
+							{list.map((m, i) => (
+								<Link
+									key={m.name}
+									to="/session/$id"
+									params={{ id: encodeURIComponent(m.name) }}
+									className="flex flex-col gap-2 justify-between font-medium text-base p-4 items-start"
+								>
+									<div className="bg-accent size-full flex flex-col p-4">
+										<div className="mb-4">
+											<span className="block font-bold">{m.name}</span>
+											<span className="text-xs">
+												Updated&nbsp;
+												{formatDistanceToNow(new Date(m.createdAt as any), {
+													addSuffix: true,
+												})}
+											</span>
+										</div>
+										<div className="text-xs grid grid-cols-3 gap-2">
+											<span className="flex flex-col">
+												<span className="text-2xl font-bold">
+													{m.sourceFrames}
+												</span>
+												<span>Source</span>
+											</span>
+											<span className="flex flex-col">
+												<span className="text-2xl font-bold">
+													{m.leftFrames}
+												</span>
+												<span>Left </span>
+											</span>
+											<span className="flex flex-col">
+												<span className="text-2xl font-bold">
+													{m.rightFrames}
+												</span>
+												<span>Right </span>
+											</span>
+										</div>
+									</div>
+								</Link>
+							))}
+						</div>
 					</>
 				)}
 			</div>

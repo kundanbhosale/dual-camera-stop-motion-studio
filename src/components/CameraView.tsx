@@ -13,16 +13,21 @@ import { type SessionState, useSessionStore } from "@/stores/sessionStore";
 
 interface Props {
 	stream?: MediaStream;
-	overlay?: string;
+	overlayFrame?: string;
+	sourceFrame?: string;
 	title: string;
 	id?: string;
 	onCamChange: (v: string | null) => void;
 }
 
 export const CameraView = forwardRef<HTMLVideoElement, Props>(
-	({ stream, overlay, title, id, onCamChange }, ref) => {
+	({ stream, overlayFrame, sourceFrame, title, id, onCamChange }, ref) => {
 		const internalRef = useRef<HTMLVideoElement>(null);
 		const onionOpacity = useSessionStore((s) => s.onionSkinOpacity);
+		const sourceImgOpacity = useSessionStore((s) => s.sourceImgOpacity);
+		const onionSkin = useSessionStore((s) => s.onionSkin);
+
+		const sourceImage = useSessionStore((s) => s.sourceImage);
 
 		const devices = useDevices((s) => s.devices);
 		useEffect(() => {
@@ -69,31 +74,43 @@ export const CameraView = forwardRef<HTMLVideoElement, Props>(
 						</Select>
 					</div>
 				</div>
-				<div className="relative aspect-video">
-					{overlay && (
-						<img
-							src={overlay}
-							className="absolute inset-0 z-10 h-full w-full object-cover"
-							style={{ opacity: onionOpacity }}
-							alt=""
-						/>
-					)}
+				<div className="relative aspect-video bg-foreground">
+					{stream && (
+						<>
+							{onionSkin && overlayFrame && (
+								<img
+									src={overlayFrame}
+									className="absolute inset-0 z-20 h-full w-full object-cover"
+									style={{ opacity: onionOpacity }}
+									alt=""
+								/>
+							)}
+							{sourceImage && sourceFrame && (
+								<img
+									src={sourceFrame}
+									className="absolute inset-0 z-10 h-full w-full object-cover"
+									style={{ opacity: sourceImgOpacity }}
+									alt=""
+								/>
+							)}
 
-					<video
-						ref={(node) => {
-							internalRef.current = node;
-							if (typeof ref === "function") {
-								ref(node);
-							} else if (ref) {
-								ref.current = node;
-							}
-						}}
-						autoPlay
-						muted
-						playsInline
-						preload="auto"
-						className="h-full w-full object-cover"
-					/>
+							<video
+								ref={(node) => {
+									internalRef.current = node;
+									if (typeof ref === "function") {
+										ref(node);
+									} else if (ref) {
+										ref.current = node;
+									}
+								}}
+								autoPlay
+								muted
+								playsInline
+								preload="auto"
+								className="h-full w-full object-cover"
+							/>
+						</>
+					)}
 				</div>
 			</div>
 		);
