@@ -281,13 +281,13 @@ function Session() {
 	);
 
 	return (
-		<div className="flex h-screen flex-col">
+		<div className="flex h-dvh flex-col overflow-hidden">
 			{loading ? (
 				<LoaderIcon className="animate-spin size-10 m-auto" />
 			) : (
 				<div className="grid grid-cols-[auto_300px] flex-1">
-					<div className="flex flex-col">
-						<div className="px-4 py-2 xl:py-4 flex gap-2">
+					<div className="flex flex-col flex-1 overflow-auto h-screen">
+						<div className="px-4 py-2 2xl:py-4 flex gap-2">
 							<Button
 								size={"icon-sm"}
 								variant={"outline"}
@@ -338,24 +338,24 @@ function Session() {
 							</div>
 						</div>
 						<div className="flex flex-col items-center justify-center flex-1 px-4">
-							<div className="flex gap-4 flex-1 w-full justify-end items-end max-w-5xl m-auto">
+							<div className="flex gap-4 flex-1 w-full justify-end items-end 2xl:max-w-5xl m-auto py-4">
 								<Button
 									disabled={capturing}
 									onClick={() => currentFrameIdx !== -1 && capture()}
 									size={"xl"}
 									className={
-										"flex-1 min-h-14 text-sm xl:text-xl max-h-32 cursor-pointer xl:mb-8 h-full flex-col justify-center gap-1"
+										"flex-1 min-h-16 text-sm 2xl:text-xl max-h-32 cursor-pointer  h-full flex-col justify-center gap-1"
 									}
 								>
 									<div className="flex items-center justify-center gap-2">
-										<CameraIcon className="size-4 xl:size-6" />{" "}
+										<CameraIcon className="size-4 2xl:size-6" />{" "}
 										<span>Capture</span>
 									</div>
 									<span className="text-xs flex gap-2 items-center">
 										<span
 											className={cn(
 												buttonVariants({ variant: "default" }),
-												"size-4 xl:size-6 bg-secondary/20",
+												"size-4 2xl:size-6 bg-secondary/20",
 											)}
 										>
 											{isMac ? <CommandIcon /> : <ControlIcon />}
@@ -363,7 +363,7 @@ function Session() {
 										<span
 											className={cn(
 												buttonVariants({ variant: "default" }),
-												"size-4 xl:size-6 bg-secondary/20",
+												"size-4 2xl:size-6 bg-secondary/20",
 											)}
 										>
 											<Space />
@@ -375,20 +375,20 @@ function Session() {
 									onClick={() => inputRef.current?.click()}
 									size={"xl"}
 									className={
-										"flex-1 min-h-14 text-sm xl:text-xl max-h-32 cursor-pointer xl:mb-8 h-full flex-col justify-center gap-1"
+										"flex-1 min-h-16 text-sm 2xl:text-xl max-h-32 cursor-pointer  h-full flex-col justify-center gap-1"
 									}
 									variant={"outline"}
 									disabled={capturing}
 								>
 									<div className="flex items-center justify-center gap-2">
-										<ImageIcon className="size-4 xl:size-6" />
+										<ImageIcon className="size-4 2xl:size-6" />
 										<span className=""> Add Source</span>
 									</div>
 									<span className="text-xs flex gap-2 items-center">
 										<span
 											className={cn(
 												buttonVariants({ variant: "secondary" }),
-												"size-4 xl:size-6",
+												"size-4 2xl:size-6",
 											)}
 										>
 											{isMac ? <CommandIcon /> : <ControlIcon />}
@@ -397,7 +397,7 @@ function Session() {
 										<span
 											className={cn(
 												buttonVariants({ variant: "secondary" }),
-												"size-4 xl:size-6 sm:text-xs",
+												"size-4 2xl:size-6 sm:text-xs",
 											)}
 										>
 											S
@@ -409,21 +409,21 @@ function Session() {
 									onClick={newFrame}
 									size={"xl"}
 									className={
-										"flex-1 min-h-14 text-sm xl:text-xl max-h-32 cursor-pointer xl:mb-8 h-full flex-col justify-center gap-1"
+										"flex-1 min-h-16 text-sm 2xl:text-xl max-h-32 cursor-pointer h-full flex-col justify-center gap-1"
 									}
 									variant={"outline"}
 									disabled={capturing}
 								>
 									{" "}
 									<div className="flex items-center justify-center gap-2">
-										<PlusIcon className="size-4 xl:size-6" />
+										<PlusIcon className="size-4 2xl:size-6" />
 										<span>New Frame</span>
 									</div>
 									<span className="text-xs flex gap-2 items-center">
 										<span
 											className={cn(
 												buttonVariants({ variant: "secondary" }),
-												"size-4 xl:size-6",
+												"size-4 2xl:size-6",
 											)}
 										>
 											{isMac ? <CommandIcon /> : <ControlIcon />}
@@ -433,7 +433,7 @@ function Session() {
 											className={cn(
 												"sm:text-xs",
 												buttonVariants({ variant: "secondary" }),
-												"size-4 xl:size-6",
+												"size-4 2xl:size-6",
 											)}
 										>
 											D

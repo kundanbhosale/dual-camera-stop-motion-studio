@@ -54,16 +54,16 @@ export function TimelineFrames({
 			</div>
 			<div className="flex">
 				<div className="flex flex-col text-xs border-r">
-					<div className="w-16 font-medium border-b items-center text-center justify-center align-middle  flex h-8 p-2">
+					<div className="aspect-square w-full min-w-14 max-w-16 font-medium border-b items-center text-center justify-center align-middle  flex h-8 p-2">
 						#
 					</div>
-					<div className="h-16 w-16 font-medium border-b items-center text-center justify-center align-middle  flex px-2">
+					<div className="aspect-square w-full min-w-14 max-w-16 font-medium border-b items-center text-center justify-center align-middle  flex px-2">
 						S
 					</div>
-					<div className="h-16 w-16 font-medium border-b items-center text-center justify-center align-middle  flex px-2">
+					<div className="aspect-square w-full min-w-14 max-w-16 font-medium border-b items-center text-center justify-center align-middle  flex px-2">
 						L
 					</div>
-					<div className="h-16 w-16 font-medium  items-center text-center justify-center align-middle  flex px-2">
+					<div className="aspect-square w-full min-w-14 max-w-16 font-medium  items-center text-center justify-center align-middle  flex px-2">
 						R
 					</div>
 				</div>
@@ -82,12 +82,12 @@ export function TimelineFrames({
 									type="button"
 									onClick={() => setCurrentFrameIdx(i)}
 									className={cn(
-										"flex flex-col items-center  justify-center border-x hover:bg-muted cursor-pointer hover:text-muted-foreground transition-all ease-in-out",
+										"flex flex-col items-center justify-center border-x hover:bg-muted cursor-pointer hover:text-muted-foreground transition-all ease-in-out",
 									)}
 								>
 									<div
 										className={cn(
-											"p-2 text-xs border-b text-center w-16 relative",
+											"p-2 text-xs border-b text-center w-full min-w-14 max-w-16 relative",
 											currentFrameIdx === i &&
 												"bg-primary text-primary-foreground",
 										)}
@@ -105,7 +105,7 @@ export function TimelineFrames({
 												.join("/") || i + 1}
 										</span>
 									</div>
-									<div className="h-16 w-16 p-1 overflow-hidden border-b">
+									<div className="aspect-square w-full min-w-14 max-w-16 p-1 overflow-hidden border-b">
 										{frame.source?.file && (
 											<img
 												src={frame.source.file}
@@ -114,7 +114,7 @@ export function TimelineFrames({
 											/>
 										)}
 									</div>
-									<div className="h-16 w-16 p-1 overflow-hidden border-b">
+									<div className="aspect-square w-full min-w-14 max-w-16 p-1 overflow-hidden border-b">
 										{frame.left && (
 											<img
 												src={frame.left.file}
@@ -123,7 +123,7 @@ export function TimelineFrames({
 											/>
 										)}
 									</div>
-									<div className="h-16 w-16 p-1 overflow-hidden">
+									<div className="aspect-square w-full min-w-14 max-w-16 p-1 overflow-hidden">
 										{frame.right && (
 											<img
 												src={frame.right.file}
