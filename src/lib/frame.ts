@@ -51,7 +51,11 @@ export async function loadCapturedFrames(
 
 	// combine frame numbers
 	const allFrameNumbers = Array.from(
-		new Set([...leftFrames.keys(), ...rightFrames.keys()]),
+		new Set([
+			...leftFrames.keys(),
+			...rightFrames.keys(),
+			...sourceFrames.keys(),
+		]),
 	).sort((a, b) => a - b);
 
 	const capturedFrames = allFrameNumbers.map((frameNumber) => ({

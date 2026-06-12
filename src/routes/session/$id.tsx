@@ -12,7 +12,8 @@ import {
 	useRouter,
 } from "@tanstack/react-router";
 import { LoaderIcon, Space } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDropzone } from "react-dropzone";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -58,6 +59,19 @@ function Session() {
 	const capturedFrames = useSessionStore((s) => s.capturedFrames);
 
 	const addCapturedFrame = useSessionStore((s) => s.addCapturedFrame);
+
+	const onDrop = useCallback((acceptedFiles: File[]) => {
+		addSource(acceptedFiles);
+	}, []);
+	const { getRootProps, getInputProps, isDragActive, inputRef } = useDropzone({
+		noClick: true,
+		noKeyboard: true,
+		multiple: true,
+		onDrop,
+	});
+
+	const inputProps = getInputProps();
+
 	const previous = useMemo(() => {
 		return capturedFrames[currentFrameIdx - 1];
 	}, [capturedFrames, currentFrameIdx]);
@@ -69,7 +83,6 @@ function Session() {
 
 	const leftVideoRef = useRef<HTMLVideoElement>(null);
 	const rightVideoRef = useRef<HTMLVideoElement>(null);
-	const inputRef = useRef<HTMLInputElement>(null);
 
 	const findSessionFolder = async (fid: string) => {
 		if (!parentFolder) return;
@@ -106,10 +119,11 @@ function Session() {
 		);
 	}, [leftDeviceId, rightDeviceId, devices]);
 
-	async function addSource(file: File) {
+	async function addSource(files: File[], idx?: number) {
 		try {
+			if (files.length === 0) return;
 			setCapturing(true);
-			if (!file) return;
+
 			const state = useSessionStore.getState();
 
 			if (!state.parentFolder) {
@@ -127,27 +141,33 @@ function Session() {
 				return toast.error("No File Editing Permission");
 			}
 
-			const sourceName = createFileName(
-				currentFrameIdx + 1,
-				state.sourceFramePrefix,
-			);
+			let curr = idx ?? currentFrameIdx + 1;
 
-			const sourceFolder = await folder.getDirectoryHandle(
-				state.sourceFolderName,
-				{
-					create: true,
-				},
-			);
-			const sourceFile = await saveBlobToFolder(sourceFolder, sourceName, file);
+			for (const file of files) {
+				const sourceName = createFileName(curr + 1, state.sourceFramePrefix);
 
-			const sourceUrl = URL.createObjectURL(sourceFile);
+				const sourceFolder = await folder.getDirectoryHandle(
+					state.sourceFolderName,
+					{
+						create: true,
+					},
+				);
+				const sourceFile = await saveBlobToFolder(
+					sourceFolder,
+					sourceName,
+					file,
+				);
 
-			addCapturedFrame(
-				{
-					source: { name: sourceFile.name, file: sourceUrl },
-				},
-				currentFrameIdx,
-			);
+				const sourceUrl = URL.createObjectURL(sourceFile);
+
+				addCapturedFrame(
+					{
+						source: { name: sourceFile.name, file: sourceUrl },
+					},
+					curr,
+				);
+				curr++;
+			}
 		} catch (e) {
 			e?.message && toast.error(e.message);
 		} finally {
@@ -223,10 +243,11 @@ function Session() {
 				},
 				currentFrameIdx,
 			);
+			C;
 			if (currentFrameIdx === state.capturedFrames.length - 1) {
-				setCurrentFrameIdx((s) => s + 1);
 				addCapturedFrame({}, state.capturedFrames.length);
 			}
+			setCurrentFrameIdx((s) => s + 1);
 		} catch (e) {
 			e?.message && toast.error(e.message);
 		} finally {
@@ -285,7 +306,22 @@ function Session() {
 				<LoaderIcon className="animate-spin size-10 m-auto" />
 			) : (
 				<div className="grid grid-cols-[auto_300px] flex-1">
-					<div className="flex flex-col flex-1 overflow-auto h-screen">
+					<div
+						{...getRootProps()}
+						className="flex flex-col flex-1 overflow-auto h-screen relative"
+					>
+						{isDragActive && (
+							<div className="size-full absolute left-0 top-0 bg-background/95 backdrop-blur z-50 p-4 flex">
+								<div className="size-full border border-primary border-dashed flex-1 flex flex-col justify-center items-center">
+									<div>
+										<p>Drag 'n' drop some files here</p>
+									</div>
+								</div>
+							</div>
+						)}
+
+						<input ref={inputRef} {...inputProps} />
+
 						<div className="px-4 py-2 2xl:py-4 flex gap-2">
 							<Button
 								size={"icon-sm"}
@@ -337,7 +373,7 @@ function Session() {
 							</div>
 						</div>
 						<div className="flex flex-col items-center justify-center flex-1 px-4">
-							<div className="flex gap-4 flex-1 w-full justify-end items-end 2xl:max-w-5xl m-auto py-4">
+							<div className="flex gap-4 flex-1 w-full justify-end 2xl:items-center items-end 2xl:max-w-5xl m-auto py-4">
 								<Button
 									disabled={capturing}
 									onClick={() => currentFrameIdx !== -1 && capture()}
@@ -381,7 +417,7 @@ function Session() {
 								>
 									<div className="flex items-center justify-center gap-2">
 										<ImageIcon className="size-4 2xl:size-6" />
-										<span className=""> Add Source</span>
+										<span className=""> Add Source Image(s)</span>
 									</div>
 									<span className="text-xs flex gap-2 items-center">
 										<span
@@ -403,7 +439,7 @@ function Session() {
 										</span>
 									</span>
 								</Button>
-
+								{/* 
 								<Button
 									onClick={newFrame}
 									size={"xl"}
@@ -413,7 +449,6 @@ function Session() {
 									variant={"outline"}
 									disabled={capturing}
 								>
-									{" "}
 									<div className="flex items-center justify-center gap-2">
 										<PlusIcon className="size-4 2xl:size-6" />
 										<span>New Frame</span>
@@ -438,8 +473,8 @@ function Session() {
 											D
 										</span>
 									</span>
-								</Button>
-								<input
+								</Button> */}
+								{/* <input
 									ref={inputRef}
 									type="file"
 									accept="image/*"
@@ -449,7 +484,7 @@ function Session() {
 										if (!file || currentFrameIdx === -1) return;
 										addSource(file);
 									}}
-								/>
+								/> */}
 							</div>
 						</div>
 						<div className="px-4 space-y-4">
@@ -457,6 +492,8 @@ function Session() {
 								frames={capturedFrames}
 								currentFrameIdx={currentFrameIdx}
 								setCurrentFrameIdx={setCurrentFrameIdx}
+								addNewFrame={newFrame}
+								addSource={(file, i) => addSource([file], i)}
 							/>
 						</div>
 					</div>
