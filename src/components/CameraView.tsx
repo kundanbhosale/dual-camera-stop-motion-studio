@@ -14,20 +14,16 @@ import { type SessionState, useSessionStore } from "@/stores/sessionStore";
 interface Props {
 	stream?: MediaStream;
 	overlayFrame?: string;
-	sourceFrame?: string;
 	title: string;
 	id?: string;
 	onCamChange: (v: string | null) => void;
 }
 
 export const CameraView = forwardRef<HTMLVideoElement, Props>(
-	({ stream, overlayFrame, sourceFrame, title, id, onCamChange }, ref) => {
+	({ stream, overlayFrame, title, id, onCamChange }, ref) => {
 		const internalRef = useRef<HTMLVideoElement>(null);
 		const onionOpacity = useSessionStore((s) => s.onionSkinOpacity);
-		const sourceImgOpacity = useSessionStore((s) => s.sourceImgOpacity);
 		const onionSkin = useSessionStore((s) => s.onionSkin);
-
-		const sourceImage = useSessionStore((s) => s.sourceImage);
 
 		const devices = useDevices((s) => s.devices);
 		useEffect(() => {
@@ -82,14 +78,6 @@ export const CameraView = forwardRef<HTMLVideoElement, Props>(
 									src={overlayFrame}
 									className="absolute inset-0 z-20 h-full w-full object-cover"
 									style={{ opacity: onionOpacity }}
-									alt=""
-								/>
-							)}
-							{sourceImage && sourceFrame && (
-								<img
-									src={sourceFrame}
-									className="absolute inset-0 z-10 h-full w-full object-cover"
-									style={{ opacity: sourceImgOpacity }}
 									alt=""
 								/>
 							)}

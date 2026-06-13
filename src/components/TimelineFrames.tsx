@@ -48,7 +48,7 @@ export function TimelineFrames({
 
 	if (frames.length === 0) {
 		return (
-			<div className="h-16 bg-muted items-center justify-center flex">
+			<div className="h-68 bg-muted items-center justify-center flex">
 				<p>No Frames Yet.</p>
 			</div>
 		);
@@ -106,13 +106,14 @@ export function TimelineFrames({
 										<span className="absolute block -top-2 size-4 rounded-full border left-1/2 -translate-x-1/2 bg-green-500"></span>
 									)} */}
 											<span className="line-clamp-1" title="">
-												{[
+												{/* {[
 													getFrameNumber(frame.source?.name),
 													getFrameNumber(frame.left?.name),
 													getFrameNumber(frame.right?.name),
 												]
 													.filter((v) => !!v)
-													.join("/") || i + 1}
+													.join("/") || i + 1} */}
+												{i + 1}
 											</span>
 										</div>
 										<div className="aspect-square w-full min-w-14 max-w-16 p-1 overflow-hidden border-b">
@@ -187,7 +188,7 @@ export function TimelineFrames({
 							// className="rotate-90 inline-block w-full"
 						>
 							Add Frame&nbsp;&nbsp;
-							<span
+							{/* <span
 								className={cn(
 									buttonVariants({ variant: "outline" }),
 									"size-4 2xl:size-6",
@@ -195,7 +196,7 @@ export function TimelineFrames({
 							>
 								{isMac ? <CommandIcon /> : <ControlIcon />}
 							</span>
-							&nbsp;
+							&nbsp; */}
 							<span
 								className={cn(
 									"sm:text-xs",
@@ -203,7 +204,7 @@ export function TimelineFrames({
 									"size-4 2xl:size-6",
 								)}
 							>
-								D
+								N
 							</span>
 						</span>
 					</button>

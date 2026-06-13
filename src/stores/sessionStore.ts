@@ -6,8 +6,6 @@ import { idbStorage } from "./idbStorage";
 export interface SessionState {
 	onionSkin: boolean;
 	onionSkinOpacity: number;
-	sourceImage: boolean;
-	sourceImgOpacity: number;
 
 	leftFramePrefix: string;
 	rightFramePrefix: string;
@@ -30,29 +28,31 @@ export interface SessionState {
 	setParentFolder: (handle: FileSystemDirectoryHandle) => void;
 
 	setDevices: (left?: string, right?: string) => void;
-	toggleSourceImage: () => void;
 
 	toggleOnion: () => void;
 	addCapturedFrame: (
 		frame: SessionState["capturedFrames"][number],
 		idx: number,
 	) => void;
+	removeCapturedFrame: (idx: number) => void;
 }
+const defaultVals = {
+	onionSkin: true,
+	onionSkinOpacity: 0.5,
+	sourceImage: true,
+	sourceImgOpacity: 0.5,
+	sourceFramePrefix: "S",
+	leftFramePrefix: "L",
+	rightFramePrefix: "R",
+	sourceFolderName: "Source",
+	leftFolderName: "Left Cam",
+	rightFolderName: "Right Cam",
+};
 
 export const useSessionStore = create<SessionState>()(
 	persist(
 		(set) => ({
-			onionSkin: true,
-			onionSkinOpacity: 0.5,
-			sourceImage: true,
-			sourceImgOpacity: 0.5,
-			sourceFramePrefix: "S",
-			leftFramePrefix: "L",
-			rightFramePrefix: "R",
-			sourceFolderName: "Source",
-			leftFolderName: "Left Cam",
-			rightFolderName: "Right Cam",
-
+			...defaultVals,
 			capturedFrames: [],
 
 			setDevices: (left, right) =>
@@ -70,10 +70,6 @@ export const useSessionStore = create<SessionState>()(
 				set((s) => ({
 					onionSkin: !s.onionSkin,
 				})),
-			toggleSourceImage: () =>
-				set((s) => ({
-					sourceImage: !s.sourceImage,
-				})),
 
 			addCapturedFrame: (frame, idx) =>
 				set((state) => {
@@ -83,6 +79,10 @@ export const useSessionStore = create<SessionState>()(
 					};
 					return state;
 				}),
+			removeCapturedFrame: (idx) =>
+				set((state) => ({
+					capturedFrames: state.capturedFrames.filter((_, i) => i !== idx),
+				})),
 		}),
 		{
 			name: "dual-cam-store",
@@ -90,8 +90,7 @@ export const useSessionStore = create<SessionState>()(
 			partialize: (state) => ({
 				onionSkin: state.onionSkin,
 				onionSkinOpacity: state.onionSkinOpacity,
-				sourceImage: state.sourceImage,
-				sourceImgOpacity: state.sourceImgOpacity,
+				sourceFolderName: state.sourceFolderName,
 				leftFramePrefix: state.leftFramePrefix,
 				rightFramePrefix: state.rightFramePrefix,
 				leftFolderName: state.leftFolderName,
@@ -100,6 +99,11 @@ export const useSessionStore = create<SessionState>()(
 				rightDeviceId: state.rightDeviceId,
 				parentFolder: state.parentFolder,
 			}),
+			merge: (persisted: any, current) => ({
+				...current,
+				...persisted,
+			}),
+			version: 0.1,
 		},
 	),
 );

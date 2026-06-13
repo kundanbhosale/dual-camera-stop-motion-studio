@@ -1,10 +1,15 @@
 import { CaretLeftIcon, CommandIcon } from "@phosphor-icons/react";
 import {
+	ArrowLeftIcon,
+	ArrowRightIcon,
+	ArrowsClockwiseIcon,
 	CameraIcon,
+	CaretRightIcon,
 	ControlIcon,
 	GearIcon,
 	ImageIcon,
 	PlusIcon,
+	TrashIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import {
 	createFileRoute,
@@ -17,8 +22,16 @@ import { useDropzone } from "react-dropzone";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+	Card,
+	CardAction,
+	CardContent,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -48,6 +61,15 @@ function Session() {
 		useState<FileSystemDirectoryHandle | null>(null);
 	const leftDeviceId = useSessionStore((s) => s.leftDeviceId);
 	const parentFolder = useSessionStore((s) => s.parentFolder);
+	const toggleOnion = useSessionStore((s) => s.toggleOnion);
+	const onionSkinOpacity = useSessionStore((s) => s.onionSkinOpacity);
+	const onionSkin = useSessionStore((s) => s.onionSkin);
+
+	const leftFolderName = useSessionStore((s) => s.leftFolderName);
+	const rightFolderName = useSessionStore((s) => s.rightFolderName);
+	const leftFramePrefix = useSessionStore((s) => s.leftFramePrefix);
+	const rightFramePrefix = useSessionStore((s) => s.rightFramePrefix);
+	const parentFolderName = useSessionStore((s) => s.parentFolder?.name ?? "");
 
 	const rightDeviceId = useSessionStore((s) => s.rightDeviceId);
 	const setDevicesStore = useSessionStore((s) => s.setDevices);
@@ -59,18 +81,7 @@ function Session() {
 	const capturedFrames = useSessionStore((s) => s.capturedFrames);
 
 	const addCapturedFrame = useSessionStore((s) => s.addCapturedFrame);
-
-	const onDrop = useCallback((acceptedFiles: File[]) => {
-		addSource(acceptedFiles);
-	}, []);
-	const { getRootProps, getInputProps, isDragActive, inputRef } = useDropzone({
-		noClick: true,
-		noKeyboard: true,
-		multiple: true,
-		onDrop,
-	});
-
-	const inputProps = getInputProps();
+	const removeCapturedFrame = useSessionStore((s) => s.removeCapturedFrame);
 
 	const previous = useMemo(() => {
 		return capturedFrames[currentFrameIdx - 1];
@@ -119,16 +130,14 @@ function Session() {
 		);
 	}, [leftDeviceId, rightDeviceId, devices]);
 
-	async function addSource(files: File[], idx?: number) {
+	const getFolders = async () => {
 		try {
-			if (files.length === 0) return;
-			setCapturing(true);
-
 			const state = useSessionStore.getState();
 
 			if (!state.parentFolder) {
-				return toast.error("Save to folder not selected.");
+				throw new Error("Save to folder not selected.");
 			}
+
 			const folder =
 				sessionFolder ??
 				(await state.parentFolder.getDirectoryHandle(sessionId, {
@@ -138,44 +147,75 @@ function Session() {
 			const allowed = await verifyPermission(state.parentFolder);
 
 			if (!allowed) {
-				return toast.error("No File Editing Permission");
+				throw new Error("No File Editing Permission");
 			}
+			const leftFolder = await folder.getDirectoryHandle(state.leftFolderName, {
+				create: true,
+			});
 
-			let curr = idx ?? currentFrameIdx + 1;
+			const rightFolder = await folder.getDirectoryHandle(
+				state.rightFolderName,
+				{
+					create: true,
+				},
+			);
+			const sourceFolder = await folder.getDirectoryHandle(
+				state.sourceFolderName,
+				{
+					create: true,
+				},
+			);
 
-			for (const file of files) {
-				const sourceName = createFileName(curr + 1, state.sourceFramePrefix);
-
-				const sourceFolder = await folder.getDirectoryHandle(
-					state.sourceFolderName,
-					{
-						create: true,
-					},
-				);
-				const sourceFile = await saveBlobToFolder(
-					sourceFolder,
-					sourceName,
-					file,
-				);
-
-				const sourceUrl = URL.createObjectURL(sourceFile);
-
-				addCapturedFrame(
-					{
-						source: { name: sourceFile.name, file: sourceUrl },
-					},
-					curr,
-				);
-				curr++;
-			}
-		} catch (e) {
-			e?.message && toast.error(e.message);
-		} finally {
-			setCapturing(false);
+			return { sessionFolder: folder, leftFolder, rightFolder, sourceFolder };
+		} catch (err: any) {
+			toast.error(err.message);
+			return null;
 		}
-	}
+	};
 
-	async function capture() {
+	const addSource = useCallback(
+		async (files: File[], idx?: number) => {
+			try {
+				if (files.length === 0) return;
+				setCapturing(true);
+
+				const state = useSessionStore.getState();
+				const folders = await getFolders();
+
+				if (!folders) return;
+				const { sourceFolder } = folders;
+
+				let curr = idx ?? currentFrameIdx + 1;
+
+				for (const file of files) {
+					const sourceName = createFileName(curr + 1, state.sourceFramePrefix);
+
+					const sourceFile = await saveBlobToFolder(
+						sourceFolder,
+						sourceName,
+						file,
+					);
+
+					const sourceUrl = URL.createObjectURL(sourceFile);
+
+					addCapturedFrame(
+						{
+							source: { name: sourceFile.name, file: sourceUrl },
+						},
+						curr,
+					);
+					curr++;
+				}
+			} catch (e) {
+				e?.message && toast.error(e.message);
+			} finally {
+				setCapturing(false);
+			}
+		},
+		[currentFrameIdx, capturing, capturedFrames, sessionId],
+	);
+
+	const capture = useCallback(async () => {
 		try {
 			setCapturing(true);
 			if (!leftVideoRef.current) {
@@ -185,25 +225,12 @@ function Session() {
 			if (!rightVideoRef.current) {
 				return toast.error("Right camera stream is missing");
 			}
-
 			const state = useSessionStore.getState();
 
-			if (!state.parentFolder) {
-				return toast.error("Save to folder not selected.");
-			}
+			const folders = await getFolders();
 
-			const folder =
-				sessionFolder ??
-				(await state.parentFolder.getDirectoryHandle(sessionId, {
-					create: true,
-				}));
-
-			const allowed = await verifyPermission(state.parentFolder);
-
-			if (!allowed) {
-				return toast.error("No File Editing Permission");
-			}
-
+			if (!folders) return;
+			const { rightFolder, leftFolder } = folders;
 			const [leftBlob, rightBlob] = await Promise.all([
 				captureVideoFrame(leftVideoRef.current),
 				captureVideoFrame(rightVideoRef.current),
@@ -217,16 +244,7 @@ function Session() {
 				currentFrameIdx + 1,
 				state.rightFramePrefix,
 			);
-			const leftFolder = await folder.getDirectoryHandle(state.leftFolderName, {
-				create: true,
-			});
-
-			const rightFolder = await folder.getDirectoryHandle(
-				state.rightFolderName,
-				{
-					create: true,
-				},
-			);
+			console.log(folders, rightName, leftName, state);
 
 			const [leftFile, rightFile] = await Promise.all([
 				saveBlobToFolder(leftFolder, leftName, leftBlob),
@@ -243,7 +261,7 @@ function Session() {
 				},
 				currentFrameIdx,
 			);
-			C;
+
 			if (currentFrameIdx === state.capturedFrames.length - 1) {
 				addCapturedFrame({}, state.capturedFrames.length);
 			}
@@ -253,34 +271,164 @@ function Session() {
 		} finally {
 			setCapturing(false);
 		}
-	}
+	}, [capturing, capturedFrames, currentFrameIdx, sessionId]);
 
 	const newFrame = () => {
-		const curr = capturedFrames[capturedFrames.length - 1];
-		if (!curr.left?.file || !curr.right?.file) {
-			return toast.error(
-				"Left / Right frame missing! Please capture to move forward.",
-			);
-		}
-
 		setCurrentFrameIdx((s) => capturedFrames.length);
 		addCapturedFrame({}, capturedFrames.length);
 	};
 
-	useHotkeys("meta+space", (e) => {
+	const removeFrame = async () => {
+		const state = useSessionStore.getState();
+
+		if (!state.parentFolder) return;
+		const currFrame = capturedFrames[currentFrameIdx];
+
+		const folders = await getFolders();
+
+		if (!folders) return;
+		const { rightFolder, leftFolder, sourceFolder } = folders;
+
+		const [source, left, right] = await Promise.all([
+			currFrame.source?.name &&
+				sourceFolder.removeEntry(currFrame.source?.name),
+			currFrame.left?.name && leftFolder.removeEntry(currFrame.left?.name),
+			currFrame.right?.name && rightFolder.removeEntry(currFrame.right?.name),
+		]);
+
+		removeCapturedFrame(currentFrameIdx);
+		setCurrentFrameIdx((s) => (s === 0 ? 0 : s - 1));
+	};
+
+	async function renameFolder(
+		parent: FileSystemDirectoryHandle,
+		oldName: string,
+		newName: string,
+	) {
+		const oldFolder = await parent.getDirectoryHandle(oldName);
+		const newFolder = await parent.getDirectoryHandle(newName, {
+			create: true,
+		});
+
+		// Recursively copy all contents
+		await copyDirectory(oldFolder, newFolder);
+
+		// Delete the old folder
+		await parent.removeEntry(oldName, { recursive: true });
+	}
+
+	async function copyDirectory(
+		source: FileSystemDirectoryHandle,
+		target: FileSystemDirectoryHandle,
+	) {
+		for await (const [name, handle] of source.entries()) {
+			if (handle.kind === "file") {
+				const file = await handle.getFile();
+				const writable = await (
+					await target.getFileHandle(name, { create: true })
+				).createWritable();
+				await writable.write(file);
+				await writable.close();
+			} else if (handle.kind === "directory") {
+				const newSubDir = await target.getDirectoryHandle(name, {
+					create: true,
+				});
+				await copyDirectory(handle, newSubDir);
+			}
+		}
+	}
+
+	async function refreshNaming() {
+		const state = useSessionStore.getState();
+		const folders = await getFolders();
+		if (!folders) return;
+		const { rightFolder, leftFolder, sourceFolder, sessionFolder } = folders;
+
+		const renameInFolder = async (
+			folder: FileSystemDirectoryHandle,
+			frame: { name: string; file: string },
+			newName: string,
+		) => {
+			const f = await folders.sessionFolder?.getDirectoryHandle(
+				`__new__${folder.name}`,
+				{
+					create: true,
+				},
+			);
+
+			const oldFolder = await folder.getFileHandle(frame.name);
+			const oldFile = await oldFolder.getFile();
+
+			if (!f) return;
+			await saveBlobToFolder(f, newName, oldFile);
+		};
+
+		try {
+			for (const [idx, frame] of capturedFrames.entries()) {
+				await Promise.all([
+					frame.source?.name &&
+						renameInFolder(
+							sourceFolder,
+							frame.source,
+							createFileName(idx + 1, state.sourceFramePrefix),
+						),
+					frame.left?.name &&
+						renameInFolder(
+							leftFolder,
+							frame.left,
+							createFileName(idx + 1, state.leftFramePrefix),
+						),
+					frame.right?.name &&
+						renameInFolder(
+							rightFolder,
+							frame.right,
+							createFileName(idx + 1, state.rightFramePrefix),
+						),
+				]);
+			}
+
+			await Promise.all([
+				sessionFolder.removeEntry(sourceFolder.name, { recursive: true }),
+				sessionFolder.removeEntry(leftFolder.name, { recursive: true }),
+				sessionFolder.removeEntry(rightFolder.name, { recursive: true }),
+			]);
+			for await (const [folderName, folderHandle] of sessionFolder.entries()) {
+				if (folderHandle.kind !== "directory") continue;
+
+				const newFolderName = folderName.replace("__new__", "");
+
+				if (newFolderName !== folderName) {
+					await renameFolder(sessionFolder, folderName, newFolderName);
+				}
+			}
+			await loadCapturedFrames(sessionFolder);
+
+			toast.success("Successfully refreshed file names.");
+		} catch (err) {
+			console.error("Rename failed:", err);
+			toast.error("Failed to rename some files. Check console for details.");
+		}
+	}
+
+	useHotkeys("space", (e) => {
 		e.preventDefault();
 		if (currentFrameIdx === -1) return;
 		capture();
 	});
 
-	useHotkeys(["meta+d"], (e) => {
+	useHotkeys(["n"], (e) => {
 		e.preventDefault();
 		newFrame();
 	});
 
-	useHotkeys(["meta+s"], (e) => {
+	useHotkeys(["s"], (e) => {
 		e.preventDefault();
 		inputRef.current?.click();
+	});
+
+	useHotkeys(["delete"], (e) => {
+		e.preventDefault();
+		removeFrame();
 	});
 
 	useHotkeys(["left"], (e) => {
@@ -300,12 +448,27 @@ function Session() {
 		[],
 	);
 
+	const onDrop = useCallback(
+		(acceptedFiles: File[]) => {
+			addSource(acceptedFiles);
+		},
+		[addSource],
+	);
+	const { getRootProps, getInputProps, isDragActive, inputRef } = useDropzone({
+		noClick: true,
+		noKeyboard: true,
+		multiple: true,
+		onDrop,
+	});
+
+	const inputProps = getInputProps();
+
 	return (
 		<div className="flex h-dvh flex-col overflow-hidden">
 			{loading ? (
 				<LoaderIcon className="animate-spin size-10 m-auto" />
 			) : (
-				<div className="grid grid-cols-[auto_300px] flex-1">
+				<div className="flex-1 ">
 					<div
 						{...getRootProps()}
 						className="flex flex-col flex-1 overflow-auto h-screen relative"
@@ -322,7 +485,7 @@ function Session() {
 
 						<input ref={inputRef} {...inputProps} />
 
-						<div className="px-4 py-2 2xl:py-4 flex gap-2">
+						<div className="p-4 flex gap-2">
 							<Button
 								size={"icon-sm"}
 								variant={"outline"}
@@ -347,13 +510,12 @@ function Session() {
 							}}
 						/> */}
 						</div>
-						<div className="grid grid-cols-2 px-4 gap-4">
+						<div className="grid grid-cols-3 px-4 gap-4 mb-8">
 							<div className="relative">
 								<CameraView
 									title="Left Camera"
 									stream={leftStream}
 									overlayFrame={previous?.left?.file}
-									sourceFrame={capturedFrames?.[currentFrameIdx]?.source?.file}
 									ref={leftVideoRef}
 									id={leftDeviceId}
 									onCamChange={(d) => setDevicesStore(d, rightDeviceId)}
@@ -366,224 +528,373 @@ function Session() {
 									title="Right Camera"
 									stream={rightStream}
 									overlayFrame={previous?.right?.file}
-									sourceFrame={capturedFrames?.[currentFrameIdx]?.source?.file}
 									ref={rightVideoRef}
 									onCamChange={(d) => setDevicesStore(leftDeviceId, d)}
 								/>
 							</div>
-						</div>
-						<div className="flex flex-col items-center justify-center flex-1 px-4">
-							<div className="flex gap-4 flex-1 w-full justify-end 2xl:items-center items-end 2xl:max-w-5xl m-auto py-4">
-								<Button
-									disabled={capturing}
-									onClick={() => currentFrameIdx !== -1 && capture()}
-									size={"xl"}
-									className={
-										"flex-1 min-h-16 text-sm 2xl:text-xl max-h-32 cursor-pointer  h-full flex-col justify-center gap-1"
-									}
-								>
-									<div className="flex items-center justify-center gap-2">
-										<CameraIcon className="size-4 2xl:size-6" />{" "}
-										<span>Capture</span>
+							<div className="relative">
+								<div className="relative overflow-hidden border">
+									<div className="border-b px-2 py-1 h-10 text-sm font-medium flex items-center justify-between">
+										<p>Source Image</p>
 									</div>
-									<span className="text-xs flex gap-2 items-center">
-										<span
-											className={cn(
-												buttonVariants({ variant: "default" }),
-												"size-4 2xl:size-6 bg-secondary/20",
-											)}
-										>
-											{isMac ? <CommandIcon /> : <ControlIcon />}
-										</span>
-										<span
-											className={cn(
-												buttonVariants({ variant: "default" }),
-												"size-4 2xl:size-6 bg-secondary/20",
-											)}
-										>
-											<Space />
-										</span>
-									</span>
-								</Button>
-
-								<Button
-									onClick={() => inputRef.current?.click()}
-									size={"xl"}
-									className={
-										"flex-1 min-h-16 text-sm 2xl:text-xl max-h-32 cursor-pointer  h-full flex-col justify-center gap-1"
-									}
-									variant={"outline"}
-									disabled={capturing}
-								>
-									<div className="flex items-center justify-center gap-2">
-										<ImageIcon className="size-4 2xl:size-6" />
-										<span className=""> Add Source Image(s)</span>
+									<div className="relative aspect-video bg-foreground">
+										{capturedFrames?.[currentFrameIdx]?.source?.file ? (
+											<img
+												src={capturedFrames?.[currentFrameIdx]?.source?.file}
+												className="absolute inset-0 z-10 h-full w-full object-contain"
+												alt=""
+											/>
+										) : (
+											<label
+												title="Add Source Image"
+												className="w-full flex-col text-muted h-full flex items-center justify-center hover:opacity-80"
+											>
+												<input
+													type="file"
+													accept="image/*"
+													className="hidden"
+													onChange={(e) => {
+														const file = e.target.files?.[0];
+														if (!file || currentFrameIdx === -1) return;
+														addSource([file], currentFrameIdx);
+													}}
+												/>
+												<PlusIcon className="size-8" />
+												<span>Add Source</span>
+											</label>
+										)}
 									</div>
-									<span className="text-xs flex gap-2 items-center">
-										<span
-											className={cn(
-												buttonVariants({ variant: "secondary" }),
-												"size-4 2xl:size-6",
-											)}
-										>
-											{isMac ? <CommandIcon /> : <ControlIcon />}
-										</span>
-
-										<span
-											className={cn(
-												buttonVariants({ variant: "secondary" }),
-												"size-4 2xl:size-6 sm:text-xs",
-											)}
-										>
-											S
-										</span>
-									</span>
-								</Button>
-								{/* 
-								<Button
-									onClick={newFrame}
-									size={"xl"}
-									className={
-										"flex-1 min-h-16 text-sm 2xl:text-xl max-h-32 cursor-pointer h-full flex-col justify-center gap-1"
-									}
-									variant={"outline"}
-									disabled={capturing}
-								>
-									<div className="flex items-center justify-center gap-2">
-										<PlusIcon className="size-4 2xl:size-6" />
-										<span>New Frame</span>
-									</div>
-									<span className="text-xs flex gap-2 items-center">
-										<span
-											className={cn(
-												buttonVariants({ variant: "secondary" }),
-												"size-4 2xl:size-6",
-											)}
-										>
-											{isMac ? <CommandIcon /> : <ControlIcon />}
-										</span>
-
-										<span
-											className={cn(
-												"sm:text-xs",
-												buttonVariants({ variant: "secondary" }),
-												"size-4 2xl:size-6",
-											)}
-										>
-											D
-										</span>
-									</span>
-								</Button> */}
-								{/* <input
-									ref={inputRef}
-									type="file"
-									accept="image/*"
-									className="hidden"
-									onChange={(e) => {
-										const file = e.target.files?.[0];
-										if (!file || currentFrameIdx === -1) return;
-										addSource(file);
-									}}
-								/> */}
+								</div>
 							</div>
 						</div>
-						<div className="px-4 space-y-4">
-							<TimelineFrames
-								frames={capturedFrames}
-								currentFrameIdx={currentFrameIdx}
-								setCurrentFrameIdx={setCurrentFrameIdx}
-								addNewFrame={newFrame}
-								addSource={(file, i) => addSource([file], i)}
-							/>
+						<div className="grid grid-cols-3 gap-4 px-4 flex-1 ">
+							<div className="col-span-2 flex w-full flex-col flex-1 gap-4">
+								<div className="flex flex-1 gap-4">
+									<div className="flex flex-1 flex-col gap-4">
+										<Card className="">
+											<CardHeader>
+												<CardTitle>Frame Navigator</CardTitle>
+											</CardHeader>
+											<CardContent className="flex gap-8 items-center justify-between">
+												<Button
+													variant={"secondary"}
+													size={"xl"}
+													className={"flex-1 max-w-sm text-sm 2xl:text-xl"}
+													onClick={() =>
+														setCurrentFrameIdx((s) => (s === 0 ? 0 : s - 1))
+													}
+												>
+													<span
+														className={cn(
+															"sm:text-xs mr-auto",
+															buttonVariants({ variant: "outline" }),
+															"size-4 2xl:size-6",
+														)}
+													>
+														<CaretLeftIcon />
+													</span>{" "}
+													Previous{" "}
+												</Button>
+												<p className="text-3xl">
+													<span className="font-black">
+														{capturedFrames.length === 0
+															? 0
+															: currentFrameIdx + 1}
+													</span>
+													/<span className="">{capturedFrames.length}</span>
+												</p>
+												<Button
+													variant={"secondary"}
+													size={"xl"}
+													className={"flex-1 max-w-sm text-sm 2xl:text-xl"}
+													onClick={() =>
+														setCurrentFrameIdx((s) =>
+															s === capturedFrames.length - 1
+																? capturedFrames.length - 1
+																: s + 1,
+														)
+													}
+												>
+													Next
+													<span
+														className={cn(
+															"sm:text-xs ml-auto",
+															buttonVariants({ variant: "outline" }),
+															"size-4 2xl:size-6",
+														)}
+													>
+														<CaretRightIcon />
+													</span>
+												</Button>
+											</CardContent>
+										</Card>
+										<Button
+											variant={"secondary"}
+											size={"xl"}
+											className={"flex-1 text-sm 2xl:text-xl py-2"}
+											onClick={() => removeFrame()}
+										>
+											<TrashIcon className="size-5" weight="fill" /> Delete
+											Current Frame
+											<span
+												className={cn(
+													"sm:text-xs ml-auto",
+													buttonVariants({ variant: "outline" }),
+													"h-4 2xl:h-6 px-2",
+												)}
+											>
+												Del
+											</span>
+										</Button>
+										<Button
+											variant={"secondary"}
+											size={"xl"}
+											className={
+												"flex-1 flex-col items-start text-sm 2xl:text-xl py-2"
+											}
+											onClick={refreshNaming}
+										>
+											<span className="flex justify-start gap-2 items-center w-full">
+												<ArrowsClockwiseIcon className="size-5" weight="fill" />
+												Re-sequence All Frames
+												{/* <span
+													className={cn(
+														"sm:text-xs ml-auto",
+														buttonVariants({ variant: "outline" }),
+														"h-4 2xl:h-6 px-2",
+													)}
+												>
+													Del
+												</span> */}
+											</span>
+											<span className="block w-full text-xs text-start font-normal text-balance">
+												Refreshes all frame naming sequence, helpful after
+												deleting frames.
+											</span>
+										</Button>
+									</div>
+									<div className="flex flex-col flex-1 gap-2">
+										<Button
+											disabled={capturing}
+											onClick={() => currentFrameIdx !== -1 && capture()}
+											size={"xl"}
+											className={
+												"text-sm 2xl:text-xl flex-1 cursor-pointer flex-col justify-center gap-1 w-full py-3"
+											}
+										>
+											<div className="flex items-center justify-center gap-2">
+												<CameraIcon className="size-4 2xl:size-6" />{" "}
+												<span>Capture</span>
+											</div>
+											<span className="text-xs flex gap-2 items-center">
+												<span
+													className={cn(
+														buttonVariants({ variant: "default" }),
+														"size-4 2xl:size-6 bg-secondary/20",
+													)}
+												>
+													<Space />
+												</span>
+											</span>
+										</Button>
+
+										<Button
+											onClick={() => inputRef.current?.click()}
+											size={"xl"}
+											className={
+												"text-sm 2xl:text-xl cursor-pointer flex-1 flex-col justify-center gap-1 w-full py-3"
+											}
+											variant={"outline"}
+											disabled={capturing}
+										>
+											<div className="flex items-center justify-center gap-2">
+												<ImageIcon className="size-4 2xl:size-6" />
+												<span className=""> Add Source Image(s)</span>
+											</div>
+											<span className="text-xs flex gap-2 items-center">
+												<span
+													className={cn(
+														buttonVariants({ variant: "secondary" }),
+														"size-4 2xl:size-6 sm:text-xs",
+													)}
+												>
+													S
+												</span>
+											</span>
+										</Button>
+									</div>
+								</div>
+								<div className="col-span-2">
+									<TimelineFrames
+										frames={capturedFrames}
+										currentFrameIdx={currentFrameIdx}
+										setCurrentFrameIdx={setCurrentFrameIdx}
+										addNewFrame={newFrame}
+										addSource={(file, i) => addSource([file], i)}
+									/>
+								</div>
+							</div>
+							<div className="flex flex-col">
+								<Card className="pb-8">
+									<CardHeader>
+										<CardTitle>Overlay (Onion Skin)</CardTitle>
+										<CardAction>
+											<Switch
+												id="onion-skin"
+												checked={onionSkin}
+												onCheckedChange={toggleOnion}
+											/>
+										</CardAction>
+									</CardHeader>
+									<CardContent>
+										<Field>
+											<FieldLabel
+												htmlFor="onion-opacity"
+												className="justify-between"
+											>
+												<span>Opacity</span>{" "}
+												<span className="text-sm text-muted-foreground">
+													{Math.round(onionSkinOpacity * 100)}%
+												</span>
+											</FieldLabel>
+
+											<Slider
+												id="onion-opacity"
+												min={0.1}
+												max={1}
+												step={0.01}
+												value={onionSkinOpacity}
+												onValueChange={(v) => {
+													useSessionStore.setState({
+														onionSkinOpacity: typeof v === "number" ? v : v[0],
+													});
+												}}
+											/>
+										</Field>
+									</CardContent>
+								</Card>
+								<Card>
+									<CardHeader>
+										<CardTitle>Naming Conventions</CardTitle>
+									</CardHeader>
+									<CardContent className="space-y-2">
+										<Field orientation="horizontal" className="">
+											<FieldLabel htmlFor="left-folder" className="w-1/2">
+												Left Folder Name
+											</FieldLabel>
+											<Input
+												id="left-folder"
+												value={leftFolderName}
+												placeholder="Left Cam"
+												onChange={(v) =>
+													useSessionStore.setState({
+														leftFolderName: v.currentTarget.value,
+													})
+												}
+											/>
+										</Field>
+										<Field orientation="horizontal" className="">
+											<FieldLabel htmlFor="right-folder" className="w-1/2">
+												Right Folder Name
+											</FieldLabel>
+											<Input
+												id="right"
+												value={rightFolderName}
+												placeholder="Right Cam"
+												onChange={(v) =>
+													useSessionStore.setState({
+														rightFolderName: v.currentTarget.value,
+													})
+												}
+											/>
+										</Field>
+										<Field orientation="horizontal" className="">
+											<FieldLabel htmlFor="save-folder" className="w-1/2">
+												Left Frame Suffix
+											</FieldLabel>
+											<Input
+												value={leftFramePrefix}
+												placeholder="L"
+												onChange={(v) =>
+													useSessionStore.setState({
+														leftFramePrefix: v.currentTarget.value,
+													})
+												}
+											/>
+										</Field>
+										<Field orientation="horizontal" className="w-full">
+											<FieldLabel htmlFor="save-folder" className="w-1/2">
+												Right Frame Suffix
+											</FieldLabel>
+											<Input
+												value={rightFramePrefix}
+												placeholder="R"
+												onChange={(v) =>
+													useSessionStore.setState({
+														rightFramePrefix: v.currentTarget.value,
+													})
+												}
+											/>
+										</Field>
+									</CardContent>
+								</Card>
+								<Card className="flex-1">
+									<CardHeader>
+										<CardTitle>Save to Folder</CardTitle>
+									</CardHeader>
+									<CardContent className="space-y-2">
+										<div className="flex gap-2">
+											<Input
+												placeholder="Select Folder"
+												disabled
+												value={parentFolderName}
+											/>
+											<Button onClick={parentFolderPick}>Change</Button>
+										</div>
+									</CardContent>
+								</Card>
+							</div>
 						</div>
 					</div>
-					<div className="border-l flex flex-col flex-1 overflow-y-auto">
-						<Settings />
-					</div>
+					{/* <div className="border-l flex flex-col flex-1 overflow-y-auto">
+						<Settings currentFrameIdx={currentFrameIdx} />
+					</div> */}
 				</div>
 			)}
 		</div>
 	);
 }
 
-function Settings() {
-	const toggleOnion = useSessionStore((s) => s.toggleOnion);
-	const onionSkinOpacity = useSessionStore((s) => s.onionSkinOpacity);
-	const onionSkin = useSessionStore((s) => s.onionSkin);
-
-	const toggleSourceImage = useSessionStore((s) => s.toggleSourceImage);
-	const sourceImgOpacity = useSessionStore((s) => s.sourceImgOpacity);
-	const sourceImage = useSessionStore((s) => s.sourceImage);
-
+function Settings({ currentFrameIdx }: { currentFrameIdx: number }) {
 	const leftFolderName = useSessionStore((s) => s.leftFolderName);
 	const rightFolderName = useSessionStore((s) => s.rightFolderName);
 	const leftFramePrefix = useSessionStore((s) => s.leftFramePrefix);
 	const rightFramePrefix = useSessionStore((s) => s.rightFramePrefix);
 	const parentFolderName = useSessionStore((s) => s.parentFolder?.name ?? "");
+	const capturedFrames = useSessionStore((s) => s.capturedFrames);
 
 	return (
-		<div className="space-y-4 py-4">
-			<p className="flex items-center gap-2 px-4">
+		<div className="space-y-4">
+			{/* <p className="flex items-center gap-2 px-4">
 				<GearIcon /> Settings
 			</p>
-			<Separator />
+			<Separator /> */}
 
-			<div className="px-4 space-y-4">
-				<Field orientation="horizontal" className="">
-					<FieldLabel htmlFor="source-image" className="min-w-32">
-						Toggle Source Image
-					</FieldLabel>
-					<Switch
-						id="source-image"
-						checked={sourceImage}
-						onCheckedChange={toggleSourceImage}
-					/>
-				</Field>
-				<Field orientation="horizontal" className="">
-					<FieldLabel htmlFor="source-img-opacity" className="min-w-32">
-						Source Image Opacity
-					</FieldLabel>
-					<Slider
-						id="source-img-opacity"
-						min={0.1}
-						max={0.9}
-						step={0.01}
-						value={sourceImgOpacity}
-						onValueChange={(v) => {
-							useSessionStore.setState({
-								sourceImgOpacity: typeof v === "number" ? v : v[0],
-							});
-						}}
-					/>
-				</Field>
-				<Separator />
-				<Field orientation="horizontal" className="">
-					<FieldLabel htmlFor="onion-skin" className="min-w-32">
-						Toggle Onion Skin
-					</FieldLabel>
-					<Switch
-						id="onion-skin"
-						checked={onionSkin}
-						onCheckedChange={toggleOnion}
-					/>
-				</Field>
-				<Field orientation="horizontal" className="">
-					<FieldLabel htmlFor="onion-opacity" className="min-w-32">
-						Onion Opacity
-					</FieldLabel>
-					<Slider
-						id="onion-opacity"
-						min={0.1}
-						max={0.9}
-						step={0.01}
-						value={onionSkinOpacity}
-						onValueChange={(v) => {
-							useSessionStore.setState({
-								onionSkinOpacity: typeof v === "number" ? v : v[0],
-							});
-						}}
-					/>
-				</Field>
+			<div className="space-y-4">
+				<div className="relative">
+					<div className="relative overflow-hidden border">
+						<div className="border-b px-2 py-1 h-10 text-sm font-medium flex items-center justify-between">
+							<p>Source</p>
+						</div>
+						<div className="relative aspect-video bg-foreground">
+							<img
+								src={capturedFrames?.[currentFrameIdx]?.source?.file}
+								className="absolute inset-0 z-10 h-full w-full object-cover"
+								alt=""
+							/>
+						</div>
+					</div>
+				</div>
 			</div>
 			<Separator />
 			<div className="px-4 space-y-4">

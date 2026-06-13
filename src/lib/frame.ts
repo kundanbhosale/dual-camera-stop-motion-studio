@@ -1,4 +1,5 @@
 import { useSessionStore } from "@/stores/sessionStore";
+import { createFileName } from "./naming";
 
 export function getFrameNumber(fileName?: string) {
 	const match = fileName?.match(/(\d+)(?!.*\d)/);
